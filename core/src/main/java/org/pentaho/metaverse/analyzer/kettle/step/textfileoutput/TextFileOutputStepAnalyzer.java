@@ -22,6 +22,10 @@
 
 package org.pentaho.metaverse.analyzer.kettle.step.textfileoutput;
 
+import org.apache.commons.collections.MapUtils;
+import org.apache.commons.lang.ArrayUtils;
+import org.pentaho.di.core.row.RowMetaInterface;
+import org.pentaho.di.core.row.ValueMetaInterface;
 import org.pentaho.di.trans.step.BaseStepMeta;
 import org.pentaho.di.trans.steps.textfileoutput.TextFileField;
 import org.pentaho.di.trans.steps.textfileoutput.TextFileOutputMeta;
@@ -36,6 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -91,12 +96,29 @@ public class TextFileOutputStepAnalyzer extends ExternalResourceStepAnalyzer<Tex
 
   @Override
   public Set<String> getOutputResourceFields( TextFileOutputMeta meta ) {
-    Set<String> fields = new HashSet<>();
-    TextFileField[] outputFields = meta.getOutputFields();
-    for ( int i = 0; i < outputFields.length; i++ ) {
-      TextFileField outputField = outputFields[ i ];
-      fields.add( outputField.getName() );
+    final Set<String> fields = new HashSet<>();
+    final TextFileField[] outputFields = meta.getOutputFields();
+    if ( !ArrayUtils.isEmpty( outputFields ) ) {
+      for ( int i = 0; i < outputFields.length; i++ ) {
+        final TextFileField outputField = outputFields[ i ];
+        fields.add( outputField.getName() );
+      }
+    } else {
+      // if no output fields are specified, we include ALL input fields
+      // get all input steps
+      final Map<String, RowMetaInterface> inputRowMetaInterfaces = getInputRowMetaInterfaces( meta );
+      if ( MapUtils.isNotEmpty( inputRowMetaInterfaces ) ) {
+        for ( Map.Entry<String, RowMetaInterface> entry : inputRowMetaInterfaces.entrySet() ) {
+          final RowMetaInterface inputFields = entry.getValue();
+          if ( inputFields != null ) {
+            for ( ValueMetaInterface valueMetaInterface : inputFields.getValueMetaList() ) {
+              fields.add( valueMetaInterface.getName() );
+            }
+          }
+        }
+      }
     }
+
     return fields;
   }
 
