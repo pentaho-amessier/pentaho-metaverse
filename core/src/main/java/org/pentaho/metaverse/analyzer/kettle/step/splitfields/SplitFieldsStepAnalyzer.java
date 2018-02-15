@@ -42,6 +42,7 @@ import java.util.Set;
  */
 public class SplitFieldsStepAnalyzer extends StepAnalyzer<FieldSplitterMeta> {
 
+  protected final String SPLIT_FIELD = "splitField";
   @Override
   protected Set<StepField> getUsedFields( FieldSplitterMeta meta ) {
     Set<StepField> usedFields = new HashSet<>();
@@ -53,6 +54,7 @@ public class SplitFieldsStepAnalyzer extends StepAnalyzer<FieldSplitterMeta> {
   protected void customAnalyze( FieldSplitterMeta meta, IMetaverseNode rootNode ) throws MetaverseAnalyzerException {
     rootNode.setProperty( DictionaryConst.PROPERTY_DELIMITER, meta.getDelimiter() );
     rootNode.setProperty( DictionaryConst.PROPERTY_ENCLOSURE, meta.getEnclosure() );
+    rootNode.setProperty( SPLIT_FIELD, meta.getSplitField() );
   }
 
   @Override
@@ -69,7 +71,7 @@ public class SplitFieldsStepAnalyzer extends StepAnalyzer<FieldSplitterMeta> {
       for ( int i = 0; i < meta.getFieldName().length; i++ ) {
         ComponentDerivationRecord cdr = new ComponentDerivationRecord( originalField, fieldNames[i], ChangeType.DATA );
         cdr.addOperation( new Operation( Operation.MAPPING_CATEGORY, ChangeType.DATA, fieldNames[i],
-          "Token " + i + " of split string" ) );
+          "Token " + i + " of " + SPLIT_FIELD ) );
         changeRecords.add( cdr );
       }
     }

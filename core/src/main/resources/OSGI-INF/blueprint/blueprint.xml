@@ -181,6 +181,9 @@
   <bean id="StringsReplaceStepAnalyzer" 
   		  class="org.pentaho.metaverse.analyzer.kettle.step.stringsreplace.StringsReplaceStepAnalyzer"/>
 
+  <bean id="ConcatFieldsStepAnalyzer"
+        class="org.pentaho.metaverse.analyzer.kettle.step.concatfields.ConcatFieldsStepAnalyzer"/>
+
   <bean id="FixedFileInputStepAnalyzer"
   		  class="org.pentaho.metaverse.analyzer.kettle.step.fixedfileinput.FixedFileInputStepAnalyzer">
     <property name="externalResourceConsumer" ref="fixedFileInputERC"/>
@@ -270,7 +273,11 @@
   <service id="stringsReplaceStepAnalyzerService"
            interface="org.pentaho.metaverse.api.analyzer.kettle.step.IStepAnalyzer"
            ref="StringsReplaceStepAnalyzer"/>
-           
+
+  <service id="concatFieldsStepAnalyzerService"
+           interface="org.pentaho.metaverse.api.analyzer.kettle.step.IStepAnalyzer"
+           ref="ConcatFieldsStepAnalyzer"/>
+
   <service id="splitFieldsStepAnalyzerService"
            interface="org.pentaho.metaverse.api.analyzer.kettle.step.IStepAnalyzer"
            ref="SplitFieldsStepAnalyzer"/>

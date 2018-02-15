@@ -20,7 +20,7 @@
  *
  ******************************************************************************/
 
-package org.pentaho.metaverse.graph;
+package org.pentaho.metaverse.api.model;
 
 import com.tinkerpop.blueprints.Graph;
 import com.tinkerpop.blueprints.KeyIndexableGraph;
@@ -36,11 +36,11 @@ import java.util.Map;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
-public class SynchronizedGraphFactoryTest {
+public class BaseSynchronizedGraphFactoryTest {
 
   @Test( expected = UnsupportedOperationException.class )
   public void testProtected_Constructor() {
-    new SynchronizedGraphFactory() {
+    new BaseSynchronizedGraphFactory() {
     };
   }
 
@@ -48,40 +48,40 @@ public class SynchronizedGraphFactoryTest {
   public void testOpen_Configuration() throws Exception {
     Configuration config = new PropertiesConfiguration();
     config.addProperty( "blueprints.graph", "com.tinkerpop.blueprints.impls.tg.TinkerGraph" );
-    Graph g = SynchronizedGraphFactory.open( config );
+    Graph g = BaseSynchronizedGraphFactory.open( config );
 
-    assertTrue( g instanceof SynchronizedGraph );
+    assertTrue( g instanceof BaseSynchronizedGraph );
   }
 
   @Test
   public void testOpen_Map() throws Exception {
     Map<String, String> config = new HashMap<String, String>();
     config.put( "blueprints.graph", "com.tinkerpop.blueprints.impls.tg.TinkerGraph" );
-    Graph g = SynchronizedGraphFactory.open( config );
+    Graph g = BaseSynchronizedGraphFactory.open( config );
 
-    assertTrue( g instanceof SynchronizedGraph );
+    assertTrue( g instanceof BaseSynchronizedGraph );
   }
 
   @Test
   public void testOpen_File() throws Exception {
     String config = "src/test/resources/graph.properties";
-    Graph g = SynchronizedGraphFactory.open( config );
+    Graph g = BaseSynchronizedGraphFactory.open( config );
 
-    assertTrue( g instanceof SynchronizedGraph );
+    assertTrue( g instanceof BaseSynchronizedGraph );
   }
 
   @Test( expected = IllegalArgumentException.class )
   public void testWrapGraph_NotAKeyIndexableGraph() throws Exception {
     Graph g = mock( Graph.class );
-    SynchronizedGraphFactory.wrapGraph( g );
+    BaseSynchronizedGraphFactory.wrapGraph( g );
   }
 
   @Test
   public void testWrapGraph() throws Exception {
     Graph g = new TinkerGraph();
-    SynchronizedGraph wrapped = (SynchronizedGraph) SynchronizedGraphFactory.wrapGraph( g );
+    BaseSynchronizedGraph wrapped = (BaseSynchronizedGraph) BaseSynchronizedGraphFactory.wrapGraph( g );
 
-    assertTrue( wrapped instanceof SynchronizedGraph );
+    assertTrue( wrapped instanceof BaseSynchronizedGraph );
     assertTrue( wrapped.graph instanceof IdGraph );
     assertTrue( wrapped.graph instanceof KeyIndexableGraph );
 

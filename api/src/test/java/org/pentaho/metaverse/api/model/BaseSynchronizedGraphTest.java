@@ -20,7 +20,7 @@
  *
  ******************************************************************************/
 
-package org.pentaho.metaverse.graph;
+package org.pentaho.metaverse.api.model;
 
 import com.tinkerpop.blueprints.Edge;
 import com.tinkerpop.blueprints.Vertex;
@@ -34,9 +34,9 @@ import org.mockito.runners.MockitoJUnitRunner;
 import static org.mockito.Mockito.*;
 
 @RunWith( MockitoJUnitRunner.class )
-public class SynchronizedGraphTest {
+public class BaseSynchronizedGraphTest {
 
-  private SynchronizedGraph synchronizedGraph;
+  private BaseSynchronizedGraph synchronizedGraph;
 
   @Mock IdGraph mockGraph;
   @Mock Vertex mockVertex;
@@ -44,7 +44,7 @@ public class SynchronizedGraphTest {
 
   @Before
   public void setUp() throws Exception {
-    synchronizedGraph = new SynchronizedGraph( mockGraph );
+    synchronizedGraph = new BaseSynchronizedGraph( mockGraph );
   }
 
   @Test
@@ -80,7 +80,7 @@ public class SynchronizedGraphTest {
     when( mockGraph.getEdge( "id" ) ).thenReturn( mockEdge );
     synchronizedGraph.addEdge( "id", mockVertex, mockVertex, "self link" );
     verify( mockGraph, times( 1 ) ).getEdge( "id" );
-    verify( mockGraph, never() ).addEdge( anyString(), eq(mockVertex), eq(mockVertex), anyString() );
+    verify( mockGraph, never() ).addEdge( anyString(), eq( mockVertex ), eq( mockVertex ), anyString() );
   }
 
   @Test

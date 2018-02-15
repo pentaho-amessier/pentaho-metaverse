@@ -20,13 +20,14 @@
  *
  ******************************************************************************/
 
-package org.pentaho.metaverse.impl;
+package org.pentaho.metaverse.api.model;
 
 import com.tinkerpop.blueprints.Direction;
 import com.tinkerpop.blueprints.Edge;
 import com.tinkerpop.blueprints.Graph;
 import com.tinkerpop.blueprints.Vertex;
 import com.tinkerpop.blueprints.impls.tg.TinkerGraph;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.pentaho.dictionary.DictionaryConst;
@@ -44,16 +45,16 @@ import static org.mockito.Mockito.when;
 /**
  * @author: rfellows
  */
-public class MetaverseBuilderTest {
+public class BaseMetaverseBuilderTest {
 
-  private MetaverseBuilder builder;
+  private BaseMetaverseBuilder builder;
   private Graph graph;
   MetaverseTransientNode node = new MetaverseTransientNode();
 
   @Before
   public void before() {
     graph = new TinkerGraph();
-    builder = new MetaverseBuilder( graph );
+    builder = new BaseMetaverseBuilder( graph );
 
     node.setStringID( "node1" );
     node.setName( "node1 name" );
@@ -62,7 +63,7 @@ public class MetaverseBuilderTest {
 
   @Test
   public void testGetSetGraph() {
-    assertEquals( graph, builder.getGraph() );
+    Assert.assertEquals( graph, builder.getGraph() );
     builder.setGraph( null );
     assertNull( builder.getGraph() );
   }
@@ -72,7 +73,7 @@ public class MetaverseBuilderTest {
 
     IMetaverseObjectFactory objectFactory = mock( IMetaverseObjectFactory.class );
     builder.setMetaverseObjectFactory( objectFactory );
-    assertEquals( objectFactory, builder.getMetaverseObjectFactory() );
+    Assert.assertEquals( objectFactory, builder.getMetaverseObjectFactory() );
 
   }
 
@@ -546,7 +547,7 @@ public class MetaverseBuilderTest {
   }
 
   @Test
-  public void testGetVertexForNodeWithDiffStringId(){
+  public void testGetVertexForNodeWithDiffStringId() {
     node.setStringID( "test string id" );
     node.setName( "test name" );
     node.setType( "test type" );

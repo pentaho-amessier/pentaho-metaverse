@@ -338,7 +338,15 @@ public abstract class StepAnalyzer<T extends BaseStepMeta> extends BaseKettleMet
                                                   String targetStepName, String nodeType ) {
     IComponentDescriptor fieldDescriptor =
       new MetaverseComponentDescriptor( fieldMeta.getName(), nodeType, rootNode, context );
-    return createFieldNode( fieldDescriptor, fieldMeta, targetStepName, true );
+    final IMetaverseNode outputFieldNode = createFieldNode( fieldDescriptor, fieldMeta, targetStepName, true );
+    outputFieldNode.setProperty( "trimType", ValueMetaInterface.getTrimTypeDescription( fieldMeta.getTrimType() ) );
+    outputFieldNode.setProperty( "stepName", rootNode.getProperties().get( "name" ) );
+    addCustomFieldProperties( outputFieldNode, fieldMeta );
+    return outputFieldNode;
+  }
+
+  protected void addCustomFieldProperties( final IMetaverseNode stepFieldNode, final ValueMetaInterface fieldMeta ) {
+    // override in child
   }
 
   @Override
@@ -587,6 +595,10 @@ public abstract class StepAnalyzer<T extends BaseStepMeta> extends BaseKettleMet
         progressMonitor.done();
         if ( !ArrayUtils.isEmpty( prevStepNames ) ) {
           rowMeta.put( prevStepNames[ 0 ], rmi );
+          // TODO:
+          //for ( int i = 0; i < prevStepNames.length; i++ ) {
+          //  rowMeta.put( prevStepNames[i], rmi );
+          //}
         }
       } catch ( KettleStepException e ) {
         rowMeta = null;
