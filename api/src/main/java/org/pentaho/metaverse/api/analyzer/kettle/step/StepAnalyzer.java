@@ -55,6 +55,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -398,6 +399,26 @@ public abstract class StepAnalyzer<T extends BaseStepMeta> extends BaseKettleMet
     return inputs;
   }
 
+  protected List<String> getInputStepNames( final T meta, final String fieldName ) {
+    // get all input steps
+    final Map<String, RowMetaInterface> inputRowMetaInterfaces = getInputRowMetaInterfaces( meta );
+    final List<String> prevStepNames = new ArrayList<>();
+    if ( MapUtils.isNotEmpty( inputRowMetaInterfaces ) ) {
+      for ( Map.Entry<String, RowMetaInterface> entry : inputRowMetaInterfaces.entrySet() ) {
+        final String prevStepName = entry.getKey();
+        final RowMetaInterface inputFields = entry.getValue();
+        if ( inputFields != null ) {
+          for ( ValueMetaInterface valueMetaInterface : inputFields.getValueMetaList() ) {
+            if ( valueMetaInterface.getName().equalsIgnoreCase( fieldName ) ) {
+              prevStepNames.add( prevStepName );
+            }
+          }
+        }
+      }
+    }
+    return prevStepNames;
+  }
+
   /**
    * Create a new IComponentDescriptor for a field input into this step
    *
@@ -544,7 +565,10 @@ public abstract class StepAnalyzer<T extends BaseStepMeta> extends BaseKettleMet
         RowMetaInterface rmi = parentTransMeta.getPrevStepFields( parentStepMeta, progressMonitor );
         progressMonitor.done();
         if ( !ArrayUtils.isEmpty( prevStepNames ) ) {
-          rowMeta.put( prevStepNames[0], rmi );
+          //rowMeta.put( prevStepNames[0], rmi );
+          for ( int i = 0; i < prevStepNames.length; i++ ) {
+            rowMeta.put( prevStepNames[i], rmi );
+          }
         }
       } catch ( KettleStepException e ) {
         rowMeta = null;

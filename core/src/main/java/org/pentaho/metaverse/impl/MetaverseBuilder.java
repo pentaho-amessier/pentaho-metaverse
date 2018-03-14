@@ -66,19 +66,34 @@ public class MetaverseBuilder extends MetaverseObjectFactory implements IMetaver
   }
 
   protected void registerStaticNodes() {
-    addEntityType( DictionaryConst.NODE_TYPE_EXTERNAL_CONNECTION, null );
-    addEntityType( DictionaryConst.NODE_TYPE_DATASOURCE, DictionaryConst.NODE_TYPE_EXTERNAL_CONNECTION );
-    addEntityType( DictionaryConst.NODE_TYPE_DATA_TABLE, null );
-    addEntityType( DictionaryConst.NODE_TYPE_DATA_COLUMN, null );
-    addEntityType( DictionaryConst.NODE_TYPE_MONGODB_CONNECTION, DictionaryConst.NODE_TYPE_EXTERNAL_CONNECTION );
-    addEntityType( DictionaryConst.NODE_TYPE_MONGODB_COLLECTION, null );
-    addEntityType( DictionaryConst.NODE_TYPE_JOB, null );
-    addEntityType( DictionaryConst.NODE_TYPE_JOB_ENTRY, null );
-    addEntityType( DictionaryConst.NODE_TYPE_LOGICAL_MODEL, null );
-    addEntityType( DictionaryConst.NODE_TYPE_TRANS, null );
-    addEntityType( DictionaryConst.NODE_TYPE_TRANS_STEP, null );
-    addEntityType( DictionaryConst.NODE_TYPE_TRANS_FIELD, null );
-    addEntityType( DictionaryConst.NODE_TYPE_USER_CONTENT, null );
+
+    DictionaryHelper.registerEntityType( DictionaryConst.NODE_TYPE_EXTERNAL_CONNECTION );
+    DictionaryHelper.registerEntityType( DictionaryConst.NODE_TYPE_DATASOURCE, DictionaryConst.NODE_TYPE_EXTERNAL_CONNECTION );
+    DictionaryHelper.registerEntityType( DictionaryConst.NODE_TYPE_DATA_TABLE );
+    DictionaryHelper.registerEntityType( DictionaryConst.NODE_TYPE_DATA_COLUMN );
+    DictionaryHelper.registerEntityType( DictionaryConst.NODE_TYPE_MONGODB_CONNECTION, DictionaryConst.NODE_TYPE_EXTERNAL_CONNECTION );
+    DictionaryHelper.registerEntityType( DictionaryConst.NODE_TYPE_MONGODB_COLLECTION );
+    DictionaryHelper.registerEntityType( DictionaryConst.NODE_TYPE_JOB );
+    DictionaryHelper.registerEntityType( DictionaryConst.NODE_TYPE_JOB_ENTRY );
+    //DictionaryHelper.registerEntityType( DictionaryConst.NODE_TYPE_JOB_ENTRY, DictionaryConst.NODE_TYPE_JOB ); //
+    // sub-component
+    DictionaryHelper.registerEntityType( DictionaryConst.NODE_TYPE_LOGICAL_MODEL );
+    DictionaryHelper.registerEntityType( DictionaryConst.NODE_TYPE_TRANS );
+    DictionaryHelper.registerEntityType( DictionaryConst.NODE_TYPE_TRANS_STEP );
+    //DictionaryHelper.registerEntityType( DictionaryConst.NODE_TYPE_TRANS_STEP, DictionaryConst.NODE_TYPE_TRANS );
+    // sub-component
+    DictionaryHelper.registerEntityType( DictionaryConst.NODE_TYPE_TRANS_FIELD );
+    //DictionaryHelper.registerEntityType( DictionaryConst.NODE_TYPE_TRANS_FIELD, DictionaryConst
+    // .NODE_TYPE_TRANS_STEP ); // sub-component
+    DictionaryHelper.registerEntityType( DictionaryConst.NODE_TYPE_USER_CONTENT );
+    DictionaryHelper.registerEntityType( DictionaryConst.NODE_TYPE_FILE );
+    DictionaryHelper.registerEntityType( DictionaryConst.NODE_TYPE_FILE_FIELD );
+    //DictionaryHelper.registerEntityType( DictionaryConst.NODE_TYPE_FILE_FIELD,DictionaryConst.NODE_TYPE_FILE );
+    // sub-component
+    DictionaryHelper.registerEntityType( DictionaryConst.NODE_TYPE_JSON_FILE, DictionaryConst.NODE_TYPE_FILE );
+    DictionaryHelper.registerEntityType( DictionaryConst.NODE_TYPE_JSON_FIELD, DictionaryConst.NODE_TYPE_FILE_FIELD );
+    //DictionaryHelper.registerEntityType( DictionaryConst.NODE_TYPE_JSON_FIELD, DictionaryConst.NODE_TYPE_JSON_FILE
+    // ); // sub-component
   }
 
   /**
@@ -131,14 +146,15 @@ public class MetaverseBuilder extends MetaverseObjectFactory implements IMetaver
     // update the to vertex properties from the toNode
     copyNodePropertiesToVertex( link.getToNode(), toVertex );
 
-    String label = link.getLabel();
+    /*String label = link.getLabel();
     String edgeId = getEdgeId( fromVertex, label, toVertex );
     // only add the link if the edge doesn't already exist
     Edge edge = graph.getEdge( edgeId );
     if ( edge == null ) {
       edge = graph.addEdge( edgeId, fromVertex, toVertex, label );
       edge.setProperty( "text", label );
-    }
+    }*/
+    Edge edge = addLink( fromVertex, link.getLabel(), toVertex );
 
     copyLinkPropertiesToEdge( link, edge );
 
@@ -193,10 +209,9 @@ public class MetaverseBuilder extends MetaverseObjectFactory implements IMetaver
 
     if ( DictionaryHelper.isEntityType( node.getType() ) ) {
 
-      // Add a link from the entity type to the node. Note the method called is addEntityType but we expect at this
-      // point that the entities have been added, the idea is to return the existing one. That's also why the second
-      // parameter is null, we don't know or care about the parent
-      graph.addEdge( null, addEntityType( node.getType(), null ), v, DictionaryConst.LINK_PARENT_CONCEPT );
+      // Add a link from the entity type to the node.
+      addLink( v, DictionaryConst.LINK_TYPE_OF, addEntityType( node.getType(),
+        DictionaryHelper.getParentNodeType( node.getType() ) ) );
     }
 
     return v;
@@ -217,7 +232,7 @@ public class MetaverseBuilder extends MetaverseObjectFactory implements IMetaver
     Vertex entityType = graph.getVertex( ENTITY_PREFIX + entityName );
     if ( entityType == null ) {
       // the entity type node does not exist, so create it
-      DictionaryHelper.registerEntityType( entityName );
+      //DictionaryHelper.registerEntityType( entityName );
       entityType = graph.addVertex( ENTITY_PREFIX + entityName );
       entityType.setProperty( DictionaryConst.PROPERTY_TYPE, DictionaryConst.NODE_TYPE_ENTITY );
       entityType.setProperty( DictionaryConst.PROPERTY_NAME, entityName );
@@ -235,7 +250,7 @@ public class MetaverseBuilder extends MetaverseObjectFactory implements IMetaver
 
       // Add and link the parent entity if specified, otherwise link to the root
       if ( parent != null ) {
-        Vertex parentEntity = addEntityType( parent, null );
+        Vertex parentEntity = addEntityType( parent, DictionaryHelper.getParentNodeType( parent ) );
         addLink( parentEntity, DictionaryConst.LINK_PARENT_CONCEPT, entityType );
       } else {
         // add the link from the root node to the entity type
@@ -475,10 +490,7 @@ public class MetaverseBuilder extends MetaverseObjectFactory implements IMetaver
    * @param label    the label
    * @param toNode   the to node
    * @return this metaverse builder
-   * @see IMetaverseBuilder#addLink(
-   *IMetaverseNode,
-   * java.lang.String,
-   * IMetaverseNode)
+   * @see IMetaverseBuilder#addLink( IMetaverseNode, String, IMetaverseNode )
    */
   @Override
   public IMetaverseBuilder addLink( IMetaverseNode fromNode, String label, IMetaverseNode toNode ) {
@@ -490,13 +502,15 @@ public class MetaverseBuilder extends MetaverseObjectFactory implements IMetaver
     return addLink( link );
   }
 
-  protected void addLink( Vertex fromVertex, String label, Vertex toVertex ) {
+  protected Edge addLink( Vertex fromVertex, String label, Vertex toVertex ) {
     String edgeId = getEdgeId( fromVertex, label, toVertex );
+    Edge e = graph.getEdge( edgeId );
     // only add the link if the edge doesn't already exist
-    if ( graph.getEdge( edgeId ) == null ) {
-      Edge e = graph.addEdge( edgeId, fromVertex, toVertex, label );
+    if ( e == null ) {
+      e = graph.addEdge( edgeId, fromVertex, toVertex, label );
       e.setProperty( "text", label );
     }
+    return e;
   }
 
   /**

@@ -46,13 +46,13 @@ public class StepNodes {
 
   public void addNode( String stepName, String fieldName, IMetaverseNode node ) {
 
-    if ( !store.containsKey( stepName ) ) {
-      store.put( stepName, new LinkedHashMap<String, IMetaverseNode>() );
+    if ( !store.containsKey( stepName.toLowerCase() ) ) {
+      store.put( stepName.toLowerCase(), new LinkedHashMap<String, IMetaverseNode>() );
     }
 
-    Map<String, IMetaverseNode> stepFields = store.get( stepName );
+    Map<String, IMetaverseNode> stepFields = store.get( stepName.toLowerCase() );
 
-    stepFields.put( fieldName, node );
+    stepFields.put( fieldName.toLowerCase(), node );
 
   }
 
@@ -60,7 +60,7 @@ public class StepNodes {
     List<IMetaverseNode> nodes = new ArrayList<>();
 
     for ( Map<String, IMetaverseNode> stepNodes : store.values() ) {
-      IMetaverseNode match = stepNodes.get( fieldName );
+      IMetaverseNode match = stepNodes.get( fieldName.toLowerCase() );
       if ( match != null ) {
         nodes.add( match );
       }
@@ -76,23 +76,25 @@ public class StepNodes {
   public IMetaverseNode findNode( String stepName, String fieldName ) {
     IMetaverseNode node = null;
 
-    Map<String, IMetaverseNode> stepNodes = store.get( stepName );
+    Map<String, IMetaverseNode> stepNodes = store.get( stepName.toLowerCase() );
     if ( stepNodes != null ) {
-      node = stepNodes.get( fieldName );
+      node = stepNodes.get( fieldName.toLowerCase() );
     }
     return node;
   }
 
   public Set<String> getStepNames() {
+    // TODO: turn to lower case? Maybe not necessary since they're insterted as lower case
     return store.keySet();
   }
 
   public Set<String> getFieldNames( String stepName ) {
-    Map<String, IMetaverseNode> stepNodes = store.get( stepName );
+    Map<String, IMetaverseNode> stepNodes = store.get( stepName.toLowerCase() );
     Set<String> fieldNames = null;
     if ( stepNodes != null ) {
       fieldNames = stepNodes.keySet();
     }
+    // TODO: turn all field names to lower case?
     return fieldNames;
   }
 

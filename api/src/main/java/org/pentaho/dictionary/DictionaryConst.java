@@ -246,9 +246,16 @@ public class DictionaryConst {
   public static final String LINK_EXECUTES = "executes";
 
   /**
-   * Label for an "parent concept" edge in the graph, e.g. a transformation entity is the parent concept of a ktr
+   * Label for an "parent concept" edge in the graph, e.g. a transformation step entity has a parent concept of a
+   * transformation entity.
    */
   public static final String LINK_PARENT_CONCEPT = "parentconcept";
+
+  /**
+   * Label for an "type concept" edge in the graph, e.g. a a transformation instance (ktr) is a type of
+   * transformation entity.
+   */
+  public static final String LINK_TYPE_OF = "istypeof";
 
   /**
    * Label for an "contains" edge in the graph, e.g. a transformation contains a step
@@ -393,6 +400,16 @@ public class DictionaryConst {
    * The node type for a field in a physical file
    */
   public static final String NODE_TYPE_FILE_FIELD = "File Field";
+
+  /**
+   * The node type for a JSON file
+   */
+  public static final String NODE_TYPE_JSON_FILE = "JSON File";
+
+  /**
+   * The node type for a field in a JSON file
+   */
+  public static final String NODE_TYPE_JSON_FIELD = "JSON Field";
 
   /**
    * The node type for a web service, e.g. SalesForce.com or a HTTP call

@@ -100,6 +100,11 @@ public abstract class BaseKettleMetaverseComponent implements IRequiresMetaverse
 
   protected IMetaverseNode createFileNode( String fileName, IComponentDescriptor descriptor )
     throws MetaverseException {
+    return createFileNode( fileName, descriptor, DictionaryConst.NODE_TYPE_FILE );
+  }
+
+  protected IMetaverseNode createFileNode( String fileName, IComponentDescriptor descriptor, String nodeType )
+    throws MetaverseException {
 
     String normalized;
     IMetaverseNode fileNode = null;
@@ -110,10 +115,7 @@ public abstract class BaseKettleMetaverseComponent implements IRequiresMetaverse
       INamespace ns = descriptor.getNamespace();
       INamespace parentNs = ns.getParentNamespace();
 
-      fileNode = metaverseObjectFactory.createNodeObject(
-        parentNs == null ? ns : parentNs,
-        normalized,
-        DictionaryConst.NODE_TYPE_FILE );
+      fileNode = metaverseObjectFactory.createNodeObject( parentNs == null ? ns : parentNs, normalized, nodeType );
 
       fileNode.setProperty( DictionaryConst.PROPERTY_PATH, normalized );
       fileNode.setLogicalIdGenerator( DictionaryConst.LOGICAL_ID_GENERATOR_FILE );

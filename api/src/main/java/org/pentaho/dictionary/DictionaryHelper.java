@@ -49,6 +49,8 @@ public class DictionaryHelper {
    */
   public static final Set<String> ENTITY_NODE_TYPES = new HashSet<String>();
 
+  private static Map<String, String> ENTITY_NODE_TYPE_TO_PARENT_TYPE = new HashMap<>( );
+
   /**
    * The set of data flow link types
    */
@@ -71,6 +73,15 @@ public class DictionaryHelper {
    */
   public static void registerEntityType( String entityType ) {
     ENTITY_NODE_TYPES.add( entityType );
+  }
+
+  public static void registerEntityType( final String entityType, final String parentNodeType ) {
+    ENTITY_NODE_TYPES.add( entityType );
+    ENTITY_NODE_TYPE_TO_PARENT_TYPE.put( entityType, parentNodeType );
+  }
+
+  public static String getParentNodeType( final String nodeType ) {
+    return ENTITY_NODE_TYPE_TO_PARENT_TYPE.get( nodeType );
   }
 
   /**
@@ -112,7 +123,7 @@ public class DictionaryHelper {
   }
 
   /**
-   * Returns true if the node type is an entity, e.g. "ktr"
+   * Returns true if the node type is an entity, e.g. "Transformation Stream Field"
    *
    * @param nodeType The type of the node
    * @return True if the node is an entity
@@ -126,6 +137,7 @@ public class DictionaryHelper {
     registerStructuralLinkType( DictionaryConst.LINK_CONTAINS );
     registerStructuralLinkType( DictionaryConst.LINK_DEFINES );
     registerStructuralLinkType( DictionaryConst.LINK_PARENT_CONCEPT );
+    registerStructuralLinkType( DictionaryConst.LINK_TYPE_OF );
 
     registerDataFlowLinkType( DictionaryConst.LINK_POPULATES );
     registerDataFlowLinkType( DictionaryConst.LINK_READBY );
@@ -152,10 +164,15 @@ public class DictionaryHelper {
     typeCategoryMap.put( DictionaryConst.NODE_TYPE_TRANS_FIELD, DictionaryConst.CATEGORY_FIELD );
     typeCategoryMap.put( DictionaryConst.NODE_TYPE_ENTITY, DictionaryConst.CATEGORY_ABSTRACT );
     typeCategoryMap.put( DictionaryConst.NODE_TYPE_FILE, DictionaryConst.CATEGORY_FIELD_COLLECTION );
+    typeCategoryMap.put( DictionaryConst.NODE_TYPE_JSON_FILE, DictionaryConst.CATEGORY_FIELD_COLLECTION );
     typeCategoryMap.put( DictionaryConst.NODE_TYPE_FILE_FIELD, DictionaryConst.CATEGORY_FIELD );
+    typeCategoryMap.put( DictionaryConst.NODE_TYPE_JSON_FIELD, DictionaryConst.CATEGORY_FIELD );
     typeCategoryMap.put( DictionaryConst.NODE_TYPE_LOCATOR, DictionaryConst.CATEGORY_REPOSITORY );
     typeCategoryMap.put( DictionaryConst.NODE_TYPE_ROOT_ENTITY, DictionaryConst.CATEGORY_ABSTRACT );
     typeCategoryMap.put( DictionaryConst.NODE_TYPE_WEBSERVICE, DictionaryConst.CATEGORY_DATASOURCE );
+
+    // TODO: ceanup and move all ENTITY_NODE_TYPES and ENTITY_NODE_TYPE_TO_PARENT_TYPE mappings here from
+    // MetaBuilder.registerStaticNodes
 
   }
 
