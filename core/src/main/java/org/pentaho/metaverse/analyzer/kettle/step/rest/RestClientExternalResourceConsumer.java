@@ -54,7 +54,7 @@ public class RestClientExternalResourceConsumer extends BaseStepExternalResource
 
     List<IExternalResourceInfo> resources = new ArrayList<>();
 
-    if ( !meta.isUrlInField() ) {
+    if ( !isDataDriven( meta ) ) {
       String url = meta.getUrl();
 
       WebServiceResourceInfo resourceInfo = createResourceInfo( url, meta );
@@ -94,11 +94,7 @@ public class RestClientExternalResourceConsumer extends BaseStepExternalResource
       String body;
 
       try {
-        if ( meta.isUrlInField() ) {
-          url = rowMeta.getString( row, meta.getUrlField(), null );
-        } else {
-          url = meta.getUrl();
-        }
+        url = rowMeta.getString( row, meta.getUrlField(), null );
         if ( StringUtils.isNotEmpty( url ) ) {
           WebServiceResourceInfo resourceInfo = createResourceInfo( url, meta );
           if ( ArrayUtils.isNotEmpty( meta.getHeaderField() ) ) {
@@ -137,9 +133,7 @@ public class RestClientExternalResourceConsumer extends BaseStepExternalResource
 
   @Override
   public boolean isDataDriven( RestMeta meta ) {
-    // this step is data driven no matter what.
-    // either the url, method, body, headers, and/or parameters come from the previous step
-    return true;
+    return  meta.isUrlInField();
   }
 
   @Override

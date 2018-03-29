@@ -47,8 +47,7 @@ public class HTTPPostExternalResourceConsumer
 
   @Override
   public boolean isDataDriven( HTTPPOSTMeta meta ) {
-    // We can safely assume that the StepMetaInterface object we get back is a TextFileInputMeta
-    return true;
+    return meta.isUrlInField();
   }
 
   @Override
@@ -57,7 +56,7 @@ public class HTTPPostExternalResourceConsumer
 
     // We only need to collect these resources if we're not data-driven and there are no used variables in the
     // metadata relating to external files.
-    if ( !meta.isUrlInField() /* TODO */ ) {
+    if ( !isDataDriven( meta ) ) {
       StepMeta parentStepMeta = meta.getParentStepMeta();
       if ( parentStepMeta != null ) {
         TransMeta parentTransMeta = parentStepMeta.getParentTransMeta();
@@ -101,12 +100,7 @@ public class HTTPPostExternalResourceConsumer
     }
     if ( meta != null ) {
       try {
-        String url;
-        if ( meta.isUrlInField() ) {
-          url = rowMeta.getString( row, meta.getUrlField(), null );
-        } else {
-          url = meta.getUrl();
-        }
+        String url = rowMeta.getString( row, meta.getUrlField(), null );
         if ( !Const.isEmpty( url ) ) {
           WebServiceResourceInfo resourceInfo =
             (WebServiceResourceInfo) ExternalResourceInfoFactory.createURLResource( url, true );

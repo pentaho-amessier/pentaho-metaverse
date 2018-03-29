@@ -47,8 +47,7 @@ public class HTTPClientExternalResourceConsumer
 
   @Override
   public boolean isDataDriven( HTTPMeta meta ) {
-    // We can safely assume that this is always data driven
-    return true;
+    return meta.isUrlInField();
   }
 
   @Override
@@ -56,7 +55,7 @@ public class HTTPClientExternalResourceConsumer
     Collection<IExternalResourceInfo> resources = Collections.emptyList();
 
     // We only need to collect these resources if we're not getting the url from a field
-    if ( !meta.isUrlInField()  ) {
+    if ( !isDataDriven( meta ) ) {
       StepMeta parentStepMeta = meta.getParentStepMeta();
       if ( parentStepMeta != null ) {
         TransMeta parentTransMeta = parentStepMeta.getParentTransMeta();
@@ -99,12 +98,7 @@ public class HTTPClientExternalResourceConsumer
     }
     if ( meta != null ) {
       try {
-        String url;
-        if ( meta.isUrlInField() ) {
-          url = rowMeta.getString( row, meta.getUrlField(), null );
-        } else {
-          url = meta.getUrl();
-        }
+        String url = rowMeta.getString( row, meta.getUrlField(), null );
         if ( !Const.isEmpty( url ) ) {
           WebServiceResourceInfo resourceInfo =
             (WebServiceResourceInfo) ExternalResourceInfoFactory.createURLResource( url, true );
