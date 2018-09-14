@@ -198,4 +198,14 @@ public class StreamLookupStepAnalyzer extends StepAnalyzer<StreamLookupMeta> {
   }
   // ******** End - Used to aid in unit testing **********
 
+  /**
+   * Stream Lookup is a special sten, only take into account the first input step
+   * @param rowMeta
+   * @param rmi
+   */
+  protected void populateInputFieldsRowMeta( final Map<String, RowMetaInterface> rowMeta, final RowMetaInterface rmi ) {
+    rowMeta.put( prevStepNames[ 0 ], rmi );
+  }
+
+
 }

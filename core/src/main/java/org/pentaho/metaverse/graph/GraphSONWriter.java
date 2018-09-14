@@ -2,7 +2,7 @@
  *
  * Pentaho Data Integration
  *
- * Copyright (C) 2002-2017 by Hitachi Vantara : http://www.pentaho.com
+ * Copyright (C) 2002-2018 by Hitachi Vantara : http://www.pentaho.com
  *
  *******************************************************************************
  *
@@ -23,7 +23,6 @@
 package org.pentaho.metaverse.graph;
 
 import com.tinkerpop.blueprints.Graph;
-import org.pentaho.metaverse.api.IGraphWriter;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -32,10 +31,10 @@ import java.io.OutputStream;
  * The GraphSONWriter class contains methods for writing a metaverse graph model in GraphSON format
  * 
  */
-public class GraphSONWriter implements IGraphWriter {
+public class GraphSONWriter extends BaseGraphWriter {
 
   @Override
-  public void outputGraph( Graph graph, OutputStream graphSONOutputStream ) throws IOException {
+  public void outputGraphImpl( Graph graph, OutputStream graphSONOutputStream ) throws IOException {
     com.tinkerpop.blueprints.util.io.graphson.GraphSONWriter.outputGraph( graph, graphSONOutputStream );
   }
 
