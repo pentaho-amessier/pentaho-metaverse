@@ -55,17 +55,22 @@ public abstract class BaseGraphWriter implements IGraphWriter {
 
   protected abstract void outputGraphImpl( final Graph graph, final OutputStream outputStream ) throws IOException;
 
-  private Set<Vertex> getVertices( final Graph graph, final String category ) {
+  private Set<Vertex> getVerticesByCategoryAndName( final Graph graph, final String category, final String name ) {
     final Iterator<Vertex> allVertices = graph.getVertices().iterator();
 
     final Set<Vertex> documentElementVertices = new HashSet();
     while ( allVertices.hasNext() ) {
       final Vertex vertex = allVertices.next();
-      if ( category.equals( vertex.getProperty( DictionaryConst.PROPERTY_CATEGORY ) ) ) {
+      if ( ( category == null || category.equals( vertex.getProperty( DictionaryConst.PROPERTY_CATEGORY ) ) )
+        && ( name == null || name.equals( vertex.getProperty( DictionaryConst.PROPERTY_NAME ) ) ) ) {
         documentElementVertices.add( vertex );
       }
     }
     return documentElementVertices;
+  }
+
+  private Set<Vertex> getVerticesByCategory( final Graph graph, final String category ) {
+    return getVerticesByCategoryAndName( graph, category, null );
   }
 
   /**
@@ -75,7 +80,7 @@ public abstract class BaseGraphWriter implements IGraphWriter {
    * @return a {@link Set} of vertices corresponding to Steps and Job Enties.
    */
   private Set<Vertex> getDocumentElementVertices( final Graph graph ) {
-    return getVertices( graph, DictionaryConst.CATEGORY_DOCUMENT_ELEMENT );
+    return getVerticesByCategory( graph, DictionaryConst.CATEGORY_DOCUMENT_ELEMENT );
   }
 
   private void deduplicateFields( final Graph graph ) {
@@ -91,10 +96,6 @@ public abstract class BaseGraphWriter implements IGraphWriter {
     }
   }
 
-  /*
-     if ( DictionaryConst.CATEGORY_FIELD.equals( inputVertexCategory )
-            && ( inputVertexType == null || !DictionaryConst.NODE_TYPE_TRANS_FIELD.equals( inputVertexType ) ) ) {
-   */
   private void mergeFields( final Graph graph, final Vertex documentElementVertex, final Direction direction,
                             final String linkLabel, boolean isTransformationField ) {
     // get all edges corresponding to the requested direction and with the requested label
@@ -169,13 +170,18 @@ public abstract class BaseGraphWriter implements IGraphWriter {
   }
 
   private Set<Vertex> getCollectionVertices( final Graph graph ) {
-    return getVertices( graph, DictionaryConst.CATEGORY_FIELD_COLLECTION );
+    return getVerticesByCategory( graph, DictionaryConst.CATEGORY_FIELD_COLLECTION );
   }
+
+  private Set<Vertex> getSQLVertices( final Graph graph ) {
+    return getVerticesByCategoryAndName( graph, DictionaryConst.CATEGORY_OTHER, DictionaryConst.NODE_NAME_SQL );
+  }
+
 
   private void adjustCollectionFields( final Graph graph ) {
 
     // first add the missing links from each Collection to its fields
-    addCollectionOutputFieldsLinks( graph );
+    addCollectionContainsFieldsLinks( graph );
     // if a single step reads more than one Collection, we will now likely have duplicate fields "output" by each
     // collection, which need to be de-duplicated
     deduplicateCollectionFields( graph );
@@ -225,22 +231,20 @@ public abstract class BaseGraphWriter implements IGraphWriter {
       DictionaryConst.NODE_TYPE_TRANS_FIELD, false );
   }
 
-  private List<Vertex> getStepsReadingCollection( final Vertex collectionVertex ) {
+  private List<Vertex> getStepOutputCollectionFields( final Vertex stepVertex ) {
+    return  getLinkedVertices( stepVertex, Direction.OUT,
+      DictionaryConst.LINK_OUTPUTS, DictionaryConst.CATEGORY_FIELD, true,
+      DictionaryConst.NODE_TYPE_TRANS_FIELD, false );
+  }
+
+  private List<Vertex> getStepsReadingVertex( final Vertex collectionVertex ) {
     return getLinkedVertices( collectionVertex, Direction.OUT,
       DictionaryConst.LINK_READBY, DictionaryConst.CATEGORY_DOCUMENT_ELEMENT, true, null, false );
   }
 
-
-  private List<String> getVertexNames( List<Vertex> vertices ) {
-    return getVertexProperties( vertices, DictionaryConst.PROPERTY_NAME );
-  }
-
-  private List<String> getVertexProperties( List<Vertex> vertices, final String propertyName ) {
-    List<String> vertexProperties = new ArrayList();
-    for ( final Vertex vertex : vertices ) {
-      vertexProperties.add( vertex.getProperty( propertyName ) );
-    }
-    return vertexProperties;
+  private List<Vertex> getStepsWritingToVertex( final Vertex collectionVertex ) {
+    return getLinkedVertices( collectionVertex, Direction.IN,
+      DictionaryConst.LINK_WRITESTO, DictionaryConst.CATEGORY_DOCUMENT_ELEMENT, true, null, false );
   }
 
   // get all collections
@@ -258,7 +262,7 @@ public abstract class BaseGraphWriter implements IGraphWriter {
       final List<Vertex> collectionFieldVertices = getCollectionOutputFields( collectionVertex );
 
       // for each collection get the steps that read it
-      final List<Vertex> stepVertices = getStepsReadingCollection( collectionVertex );
+      final List<Vertex> stepVertices = getStepsReadingVertex( collectionVertex );
 
       // for each step, check if it contains "inputs" links from all the collection output fields, and if not, add
       // the missing links, as well as "populates" links to all step output fields with the same name
@@ -298,34 +302,37 @@ public abstract class BaseGraphWriter implements IGraphWriter {
     return null;
   }
 
-  // add output field only to the file field which inputs into the step, also add inputs field to all steps which read
-  // the file
-  private void addCollectionOutputFieldsLinks( final Graph graph ) {
+  // add "contains" edges only to fields and columns which input into the step
+  private void addCollectionContainsFieldsLinks( final Graph graph ) {
     // get all Collections (files, database tables etc...)
-    Iterator<Vertex> collectionVertices = getCollectionVertices( graph ).iterator();
+    final Set<Vertex> collectionVertexSet = getCollectionVertices( graph );
+    collectionVertexSet.addAll( getSQLVertices( graph ) );
+
+    final Iterator<Vertex> collectionVertices = collectionVertexSet.iterator();
 
     while ( collectionVertices.hasNext() ) {
       final Vertex collectionVertex = collectionVertices.next();
-      // keep track of field names, as we are adding them, so we don't add output edges to duplicate fields
-      final Set<String> collectionFieldNames = new HashSet();
       // for each collection vertex, get all steps that read it
-      final List<Vertex> stepVertices = getStepsReadingCollection( collectionVertex );
+      List<Vertex> stepVertices = getStepsReadingVertex( collectionVertex );
       for ( final Vertex stepVertex : stepVertices ) {
 
         // for each step, get all non-transformation fields linked through the IN "inputs" edges
         final List<Vertex> fieldVertices = getStepInputCollectionFields( stepVertex );
+        addContainsLinks( graph, collectionVertex, fieldVertices );
+        /*
         for ( final Vertex fieldVertex : fieldVertices ) {
-          final String fieldName = fieldVertex.getProperty( DictionaryConst.PROPERTY_NAME );
           final String newLinkId = BaseMetaverseBuilder.getEdgeId(
-            collectionVertex, DictionaryConst.LINK_OUTPUTS, fieldVertex );
-          if ( graph.getEdge( newLinkId ) == null  && !collectionFieldNames.contains( fieldName ) ) {
-            //collectionFieldNames.add( fieldName );
+            collectionVertex, DictionaryConst.LINK_CONTAINS, fieldVertex );
+          if ( graph.getEdge( newLinkId ) == null ) {
             // add an "outputs" edge from the collection to the field, but only if an edge to a field with that
             // name doesn't already exist
-            graph.addEdge( newLinkId, collectionVertex, fieldVertex, DictionaryConst.LINK_OUTPUTS )
-              .setProperty( "text", DictionaryConst.LINK_OUTPUTS );
+            graph.addEdge( newLinkId, collectionVertex, fieldVertex, DictionaryConst.LINK_CONTAINS )
+              .setProperty( "text", DictionaryConst.LINK_CONTAINS );
           }
-        }
+        }*/
+        /*
+        // keep track of field names, as we are adding them, so we don't add output edges to duplicate fields
+        final Set<String> collectionFieldNames = new HashSet();
         // for each step, get all IN "inputs" edges to get the input fields
         final Iterator<Edge> stepInputLinks = stepVertex.getEdges(
           Direction.IN, DictionaryConst.LINK_INPUTS ).iterator();
@@ -345,13 +352,43 @@ public abstract class BaseGraphWriter implements IGraphWriter {
               collectionFieldNames.add( inputVertexName );
               // add an "outputs" edge from the collection to the field, but only if an edge to a field with that
               // name doesn't already exist
-              graph.addEdge( newLinkId, collectionVertex,inputVertex, DictionaryConst.LINK_OUTPUTS )
+              graph.addEdge( newLinkId, collectionVertex, inputVertex, DictionaryConst.LINK_OUTPUTS )
                 .setProperty( "text", DictionaryConst.LINK_OUTPUTS );
             }
           }
-        }
+        }*/
       }
-   }
+      stepVertices = getStepsWritingToVertex( collectionVertex );
+      for ( final Vertex stepVertex : stepVertices ) {
+        // for each step, get all non-transformation fields linked through the OUT "outputs" edges
+        final List<Vertex> fieldVertices = getStepOutputCollectionFields( stepVertex );
+        addContainsLinks( graph, collectionVertex, fieldVertices );
+        /*
+        for ( final Vertex fieldVertex : fieldVertices ) {
+          final String newLinkId = BaseMetaverseBuilder.getEdgeId(
+            collectionVertex, DictionaryConst.LINK_CONTAINS, fieldVertex );
+          if ( graph.getEdge( newLinkId ) == null ) {
+            // add an "outputs" edge from the collection to the field, but only if an edge to a field with that
+            // name doesn't already exist
+            graph.addEdge( newLinkId, collectionVertex, fieldVertex, DictionaryConst.LINK_CONTAINS )
+              .setProperty( "text", DictionaryConst.LINK_CONTAINS );
+          }
+        }*/
+      }
+    }
+  }
+
+  private void addContainsLinks( final Graph graph, final Vertex collectionVertex, final List<Vertex> fieldVertices ) {
+    for ( final Vertex fieldVertex : fieldVertices ) {
+      final String newLinkId = BaseMetaverseBuilder.getEdgeId(
+        collectionVertex, DictionaryConst.LINK_CONTAINS, fieldVertex );
+      if ( graph.getEdge( newLinkId ) == null ) {
+        // add an "outputs" edge from the collection to the field, but only if an edge to a field with that
+        // name doesn't already exist
+        graph.addEdge( newLinkId, collectionVertex, fieldVertex, DictionaryConst.LINK_CONTAINS )
+          .setProperty( "text", DictionaryConst.LINK_CONTAINS );
+      }
+    }
   }
 
   private void deduplicateCollectionFields( final Graph graph ) {
