@@ -632,14 +632,15 @@ public class DictionaryConst {
     new MetaverseLogicalIdGenerator( new String[] {
       PROPERTY_NAMESPACE,
       PROPERTY_TYPE,
-      PROPERTY_NAME,
-      PROPERTY_SCHEMA
+      PROPERTY_SCHEMA,
+      PROPERTY_NAME
     } );
 
   public static final ILogicalIdGenerator LOGICAL_ID_GENERATOR_DB_QUERY =
     new MetaverseLogicalIdGenerator( new String[] {
       PROPERTY_NAMESPACE,
       PROPERTY_TYPE,
+      PROPERTY_NAME,
       PROPERTY_QUERY
     } );
 

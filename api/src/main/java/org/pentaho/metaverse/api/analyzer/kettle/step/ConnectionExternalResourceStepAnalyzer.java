@@ -100,8 +100,11 @@ public abstract class ConnectionExternalResourceStepAnalyzer<T extends BaseStepM
         IMetaverseNode resNode = stepNodes.findNode( ExternalResourceStepAnalyzer.RESOURCE, fieldName );
         if ( resNode != null ) {
           IMetaverseNode[] allTableNodes = getTableNodes();
-          if ( allTableNodes.length == 0 ) {
-            allTableNodes = new IMetaverseNode[]{ getTableNode() };
+          if ( ( allTableNodes == null || allTableNodes.length == 0 ) && getTableNode() != null ) {
+            allTableNodes = new IMetaverseNode[] { getTableNode() };
+          }
+          if ( allTableNodes == null ) {
+            allTableNodes = new IMetaverseNode[]{};
           }
           for ( final IMetaverseNode thisTableNode : allTableNodes ) {
             if ( hasColumn( thisTableNode.getName(), resNode.getName() ) ) {

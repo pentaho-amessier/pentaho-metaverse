@@ -22,9 +22,8 @@
 
 package org.pentaho.metaverse.analyzer.kettle.step.tableinput;
 
-import com.sun.xml.rpc.processor.modeler.j2ee.xml.string;
 import org.pentaho.di.core.database.Database;
-import org.pentaho.di.core.database.util.DatabaseUtil;
+import org.pentaho.di.core.util.StringUtil;
 import org.pentaho.di.trans.step.BaseStepMeta;
 import org.pentaho.di.trans.steps.tableinput.TableInputMeta;
 import org.pentaho.dictionary.DictionaryConst;
@@ -38,7 +37,6 @@ import org.pentaho.metaverse.api.model.IExternalResourceInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -78,22 +76,27 @@ public class TableInputStepAnalyzer extends ConnectionExternalResourceStepAnalyz
 
       String[] tableNames = tablesStr.split( "," );
       for ( final String tableName : tableNames ) {
-        nodes.add( createTableNode( resource, tableName.trim(), DictionaryConst.NODE_TYPE_DATA_TABLE ) );
+        final IMetaverseNode tableNode = createTableNode( resource, tableName.trim(),
+          DictionaryConst.NODE_TYPE_DATA_TABLE, false );
+        tableNode.setProperty( DictionaryConst.PROPERTY_TABLE, tableName.trim() );
+        tableNode.setLogicalIdGenerator( DictionaryConst.LOGICAL_ID_GENERATOR_DB_TABLE );
+        // add table schema
+        tableNode.setProperty( DictionaryConst.PROPERTY_SCHEMA, getSchema( tableName.trim() ) );
+        nodes.add( tableNode );
       }
-    }
-    catch ( final Exception e ) {
+    } catch ( final Exception e ) {
       // TODO: log
     }
-    return nodes.toArray( new IMetaverseNode[nodes.size()] );
+    return nodes.toArray( new IMetaverseNode[ nodes.size() ] );
   }
 
   @Override
   protected IMetaverseNode createTableNode( IExternalResourceInfo resource ) throws MetaverseAnalyzerException {
-    return createTableNode( resource, DictionaryConst.NODE_NAME_SQL, DictionaryConst.NODE_TYPE_SQL_QUERY );
+    return createTableNode( resource, DictionaryConst.NODE_NAME_SQL, DictionaryConst.NODE_TYPE_SQL_QUERY, true );
   }
 
   private IMetaverseNode createTableNode( final IExternalResourceInfo resource, final String tableName,
-                                          final String nodeType ) throws
+                                          final String nodeType, final boolean isQuery ) throws
     MetaverseAnalyzerException {
     BaseDatabaseResourceInfo resourceInfo = (BaseDatabaseResourceInfo) resource;
 
@@ -120,41 +123,60 @@ public class TableInputStepAnalyzer extends ConnectionExternalResourceStepAnalyz
     return getColumnNames( tableName ).contains( columnName.toLowerCase() );
   }
 
-  private List<String> getSchemas( final Database db, final String tableName ) {
-    final List<String> schemas = new ArrayList();
+  private String getSchema( final String tableName ) {
+    String schema = null;
+    try {
+      final Database db = new Database( null, baseStepMeta.getDatabaseMeta() );
+      db.normalConnect( null );
+      schema = getSchema( db, tableName );
+      db.closeConnectionOnly();
+    } catch ( final Exception e ) {
+      // TODO: log
+    }
+    return schema;
+  }
+
+  private String getSchema(  final Database db, final String tableName ) {
+
+    String schema = null;
     if ( tableName.indexOf( '.' ) > 0 ) {
-      schemas.add( tableName.substring( 0, tableName.indexOf( '.' ) ) );
+      schema = StringUtil.removeEnclosure( tableName.substring( 0, tableName.indexOf( '.' ) ), "\"" );
     } else {
       try {
-        final ResultSet rs = db.getConnection().getMetaData().getSchemas();
-        while ( rs.next() ) {
-          schemas.add( rs.getString( 1 ) );
+        final ResultSet tableRs =
+          db.getConnection().getMetaData().getTables( null, null, "%", new String[] { "TABLE" } );
+        //String tableName = resultSet.getString(3);
+        //String tableCatalog = resultSet.getString(1);
+        //String tableSchema = resultSet.getString(2);
+        while ( tableRs.next() ) {
+          String thisTableName = tableRs.getString( 3 );
+          String thisTableSchema = tableRs.getString( 2 );
+          if ( tableName.equalsIgnoreCase( thisTableName ) ) {
+            schema = thisTableSchema;
+            break;
+          }
         }
-        rs.close();
-      }
-      catch ( final Exception e ) {
-
+        tableRs.close();
+      } catch ( final Exception e ) {
+        // TODO: log
       }
     }
-    return schemas;
+    return schema;
   }
+
   private List<String> getColumnNames( final String tableName ) {
 
     final List<String> columnNames = new ArrayList();
     try {
       final Database db = new Database( null, baseStepMeta.getDatabaseMeta() );
       db.normalConnect( null );
-      final List<String> schemas = getSchemas( db, tableName );
-      for ( final String schema : schemas ) {
-        final ResultSet rs = db.getColumnsMetaData( schema, tableName );
-        while ( rs.next() ) {
-          columnNames.add( rs.getString( 4 ).toLowerCase() );
-        }
-        rs.close();
+      final ResultSet rs = db.getColumnsMetaData( getSchema( db, tableName ), tableName );
+      while ( rs.next() ) {
+        columnNames.add( rs.getString( 4 ).toLowerCase() );
       }
+      rs.close();
       db.closeConnectionOnly();
-    }
-    catch ( final Exception e ) {
+    } catch ( final Exception e ) {
 
     }
     return columnNames;

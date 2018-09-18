@@ -100,6 +100,23 @@ public abstract class BaseGraphWriter implements IGraphWriter {
     }
   }
 
+  private boolean shouldMerge( final Set<String> allFieldNames, final String fieldName ) {
+    // does this fieldName follow this pattern? <root>_n, where <root> is also a field name? If so, mark it as a
+    // field that needs to be merged
+    if ( fieldName.indexOf( '_' ) > 0 ) {
+      final String root = fieldName.substring( 0, fieldName.lastIndexOf( '_' ) );
+      final String counter = fieldName.substring( fieldName.lastIndexOf( '_' ) + 1 );
+      try {
+        Integer.parseInt( counter );
+      } catch ( NumberFormatException ex ) {
+        return false;
+      }
+      // we have a numeric suffix - check if the root by itself is a valid field name
+      return allFieldNames.contains( root );
+    }
+    return false;
+  }
+
   /**
    * Merges any duplicate field names, given the direction and link label, so that multiple field nodes with the same
    * name become one, all links from duplicate fields being merged into the same field node.
@@ -131,7 +148,7 @@ public abstract class BaseGraphWriter implements IGraphWriter {
       }
     }
 
-    // traverse the map pf fields - for any field name, if more than one has been found, merge them into one
+    // traverse the map of fields - for any field name, if more than one has been found, merge them into one
     final Iterator<Map.Entry<String, Set<Vertex>>> fieldIter = fieldMap.entrySet().iterator();
     while ( fieldIter.hasNext() ) {
       final Map.Entry<String, Set<Vertex>> fieldEntry = fieldIter.next();
@@ -146,6 +163,41 @@ public abstract class BaseGraphWriter implements IGraphWriter {
           rewireLinks( graph, fieldVertexToKeep, fieldVertexToMerge, Direction.OUT );
           // we can now safely remove 'fieldVertexToMerge'
           fieldVertexToMerge.remove();
+        }
+      }
+    }
+
+    if ( DictionaryConst.NODE_TYPE_DATA_TABLE.equals( documentElementVertex.getProperty( DictionaryConst.PROPERTY_TYPE ) ) ) {
+      // if dealing with database columns, take another pass at the fieldMap - in the case of database columns, when we
+      // have a multi-table join where the tables being joined share some of the fields, we will have duplicate unique
+      // colum names with "_n" siffixes to make the fields unique. This is file for the table input step's output
+      // transformation stream fields, but the database columns being input into the step should represent the real
+      // columns, not these generated names with the "_n" suffix... We need to find any groups of fields, where
+      // the field name ends with "_n" and the root column name exists as well, and merge those
+      // TODO: check if we have a table input step
+      // TODO: test with real column names that have the "_n" pattern at the end, we do not want to merge those!
+      final Iterator<String> fieldNames = fieldMap.keySet().iterator();
+      final Set<String> fieldNamesToMerge = new HashSet();
+      while ( fieldNames.hasNext() ) {
+        final String fieldName = fieldNames.next();
+        if ( shouldMerge( fieldMap.keySet(), fieldName ) ) {
+          fieldNamesToMerge.add( fieldName );
+        }
+      }
+      // traverse fieldNamesToMerge, and rewire those fields
+      final Iterator<String> fieldNamesToMergeIter = fieldNamesToMerge.iterator();
+      while ( fieldNamesToMergeIter.hasNext() ) {
+        final String fieldNameToMerge = fieldNamesToMergeIter.next();
+        final String fieldNameToKeep = fieldNameToMerge.substring( 0, fieldNameToMerge.lastIndexOf( '_' ) );
+        final Vertex fieldVertexToKeep = (Vertex) new ArrayList( fieldMap.get( fieldNameToKeep ) ).get( 0 );
+        // get the field vertices that correspond to this name
+        final List<Vertex> fieldVerticesToMerge  = new ArrayList( fieldMap.get( fieldNameToMerge ) );
+        for ( int i = 0; i < fieldVerticesToMerge.size(); i++ ) {
+          final Vertex fieldVertexToMerge = fieldVerticesToMerge.get( i );
+          rewireLinks( graph, fieldVertexToKeep, fieldVertexToMerge, Direction.IN );
+          rewireLinks( graph, fieldVertexToKeep, fieldVertexToMerge, Direction.OUT );
+          // we can now safely remove 'fieldVertexToMerge'
+          //fieldVertexToMerge.remove(); // TODO
         }
       }
     }
@@ -196,6 +248,7 @@ public abstract class BaseGraphWriter implements IGraphWriter {
     // add "contains" links links from each external resource (collections and SQL nodes) to its resource fields
     // (file fields and database columns)to make it clear which fields belong to which resource
     addExternalResourceContainsFieldsLinks( graph );
+
     // if a single step reads from more than one external resource, we will have multiple input fields with the same
     // name, one from each read file - these fields need to be de-duplicated for certain adapters (such as IGC
     // plugin) to work correctly
@@ -218,9 +271,9 @@ public abstract class BaseGraphWriter implements IGraphWriter {
       final String category = vertex.getProperty( DictionaryConst.PROPERTY_CATEGORY );
       final String type = vertex.getProperty( DictionaryConst.PROPERTY_TYPE );
       if ( ( linkedVertexCategory == null
-          || ( category != null && equalToCategory == category.equals( linkedVertexCategory ) ) )
+        || ( category != null && equalToCategory == category.equals( linkedVertexCategory ) ) )
         && ( linkedVertexType == null
-          || ( type != null && equalToType == type.equals( linkedVertexType ) ) ) ) {
+        || ( type != null && equalToType == type.equals( linkedVertexType ) ) ) ) {
         linkedVertices.add( vertex );
       }
     }
@@ -240,13 +293,13 @@ public abstract class BaseGraphWriter implements IGraphWriter {
   }
 
   private List<Vertex> getStepInputCollectionFields( final Vertex stepVertex ) {
-    return  getLinkedVertices( stepVertex, Direction.IN,
+    return getLinkedVertices( stepVertex, Direction.IN,
       DictionaryConst.LINK_INPUTS, DictionaryConst.CATEGORY_FIELD, true,
       DictionaryConst.NODE_TYPE_TRANS_FIELD, false );
   }
 
   private List<Vertex> getStepOutputCollectionFields( final Vertex stepVertex ) {
-    return  getLinkedVertices( stepVertex, Direction.OUT,
+    return getLinkedVertices( stepVertex, Direction.OUT,
       DictionaryConst.LINK_OUTPUTS, DictionaryConst.CATEGORY_FIELD, true,
       DictionaryConst.NODE_TYPE_TRANS_FIELD, false );
   }
@@ -361,10 +414,6 @@ public abstract class BaseGraphWriter implements IGraphWriter {
     final Set<Vertex> collectionVertexSet = getCollectionVertices( graph );
     collectionVertexSet.addAll( getSQLVertices( graph ) );
     final Iterator<Vertex> collectionVertices = collectionVertexSet.iterator();
-
-    // traverse the links and see if there are any that point to fields with the same names, if so, they need to be
-    // merged
-    final Map<String, Set<Vertex>> fieldMap = new HashMap();
 
     while ( collectionVertices.hasNext() ) {
       final Vertex collectionVertex = collectionVertices.next();
