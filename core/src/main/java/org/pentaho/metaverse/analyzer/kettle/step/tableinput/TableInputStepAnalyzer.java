@@ -22,6 +22,9 @@
 
 package org.pentaho.metaverse.analyzer.kettle.step.tableinput;
 
+import com.sun.xml.rpc.processor.modeler.j2ee.xml.string;
+import org.pentaho.di.core.database.Database;
+import org.pentaho.di.core.database.util.DatabaseUtil;
 import org.pentaho.di.trans.step.BaseStepMeta;
 import org.pentaho.di.trans.steps.tableinput.TableInputMeta;
 import org.pentaho.dictionary.DictionaryConst;
@@ -35,7 +38,11 @@ import org.pentaho.metaverse.api.model.IExternalResourceInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.DatabaseMetaData;
+import java.sql.ResultSet;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -55,7 +62,39 @@ public class TableInputStepAnalyzer extends ConnectionExternalResourceStepAnalyz
   }
 
   @Override
+  protected IMetaverseNode[] createTableNodes( IExternalResourceInfo resource )
+    throws MetaverseAnalyzerException {
+
+    final List<IMetaverseNode> nodes = new ArrayList();
+    try {
+      final String sql = parentTransMeta.environmentSubstitute( baseStepMeta.getSQL() ).toLowerCase();
+      String tablesStr = sql.substring( sql.indexOf( "from" ) + "from".length() );
+      if ( tablesStr.indexOf( "where " ) > -1 ) {
+        tablesStr = tablesStr.substring( 0, tablesStr.indexOf( "where " ) );
+      }
+      if ( tablesStr.indexOf( "order by " ) > -1 ) {
+        tablesStr = tablesStr.substring( 0, tablesStr.indexOf( "order by " ) );
+      }
+
+      String[] tableNames = tablesStr.split( "," );
+      for ( final String tableName : tableNames ) {
+        nodes.add( createTableNode( resource, tableName.trim(), DictionaryConst.NODE_TYPE_DATA_TABLE ) );
+      }
+    }
+    catch ( final Exception e ) {
+      // TODO: log
+    }
+    return nodes.toArray( new IMetaverseNode[nodes.size()] );
+  }
+
+  @Override
   protected IMetaverseNode createTableNode( IExternalResourceInfo resource ) throws MetaverseAnalyzerException {
+    return createTableNode( resource, DictionaryConst.NODE_NAME_SQL, DictionaryConst.NODE_TYPE_SQL_QUERY );
+  }
+
+  private IMetaverseNode createTableNode( final IExternalResourceInfo resource, final String tableName,
+                                          final String nodeType ) throws
+    MetaverseAnalyzerException {
     BaseDatabaseResourceInfo resourceInfo = (BaseDatabaseResourceInfo) resource;
 
     Object obj = resourceInfo.getAttributes().get( DictionaryConst.PROPERTY_QUERY );
@@ -63,8 +102,8 @@ public class TableInputStepAnalyzer extends ConnectionExternalResourceStepAnalyz
 
     // create a node for the table
     MetaverseComponentDescriptor componentDescriptor = new MetaverseComponentDescriptor(
-      "SQL",
-      DictionaryConst.NODE_TYPE_SQL_QUERY,
+      tableName,
+      nodeType,
       getConnectionNode(),
       getDescriptor().getContext() );
 
@@ -74,6 +113,51 @@ public class TableInputStepAnalyzer extends ConnectionExternalResourceStepAnalyz
     tableNode.setProperty( DictionaryConst.PROPERTY_QUERY, query );
     tableNode.setLogicalIdGenerator( DictionaryConst.LOGICAL_ID_GENERATOR_DB_QUERY );
     return tableNode;
+  }
+
+  @Override
+  protected boolean hasColumn( final String tableName, final String columnName ) {
+    return getColumnNames( tableName ).contains( columnName.toLowerCase() );
+  }
+
+  private List<String> getSchemas( final Database db, final String tableName ) {
+    final List<String> schemas = new ArrayList();
+    if ( tableName.indexOf( '.' ) > 0 ) {
+      schemas.add( tableName.substring( 0, tableName.indexOf( '.' ) ) );
+    } else {
+      try {
+        final ResultSet rs = db.getConnection().getMetaData().getSchemas();
+        while ( rs.next() ) {
+          schemas.add( rs.getString( 1 ) );
+        }
+        rs.close();
+      }
+      catch ( final Exception e ) {
+
+      }
+    }
+    return schemas;
+  }
+  private List<String> getColumnNames( final String tableName ) {
+
+    final List<String> columnNames = new ArrayList();
+    try {
+      final Database db = new Database( null, baseStepMeta.getDatabaseMeta() );
+      db.normalConnect( null );
+      final List<String> schemas = getSchemas( db, tableName );
+      for ( final String schema : schemas ) {
+        final ResultSet rs = db.getColumnsMetaData( schema, tableName );
+        while ( rs.next() ) {
+          columnNames.add( rs.getString( 4 ).toLowerCase() );
+        }
+        rs.close();
+      }
+      db.closeConnectionOnly();
+    }
+    catch ( final Exception e ) {
+
+    }
+    return columnNames;
   }
 
   @Override
@@ -104,8 +188,14 @@ public class TableInputStepAnalyzer extends ConnectionExternalResourceStepAnalyz
   @Override
   public IMetaverseNode getConnectionNode() throws MetaverseAnalyzerException {
     connectionNode = (IMetaverseNode) getConnectionAnalyzer().analyze(
-        getDescriptor(), baseStepMeta.getDatabaseMeta() );
+      getDescriptor(), baseStepMeta.getDatabaseMeta() );
     return connectionNode;
+  }
+
+  @Override
+  protected void customAnalyze( TableInputMeta meta, IMetaverseNode rootNode ) throws MetaverseAnalyzerException {
+    super.customAnalyze( meta, rootNode );
+    rootNode.setProperty( DictionaryConst.PROPERTY_QUERY, parentTransMeta.environmentSubstitute( meta.getSQL() ) );
   }
 
   //////////////

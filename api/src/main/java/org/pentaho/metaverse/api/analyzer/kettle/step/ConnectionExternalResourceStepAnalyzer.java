@@ -22,6 +22,7 @@
 
 package org.pentaho.metaverse.api.analyzer.kettle.step;
 
+import org.pentaho.di.core.database.Database;
 import org.pentaho.di.trans.step.BaseStepMeta;
 import org.pentaho.dictionary.DictionaryConst;
 import org.pentaho.metaverse.api.IMetaverseNode;
@@ -29,6 +30,7 @@ import org.pentaho.metaverse.api.MetaverseAnalyzerException;
 import org.pentaho.metaverse.api.MetaverseException;
 import org.pentaho.metaverse.api.model.IExternalResourceInfo;
 
+import java.sql.ResultSet;
 import java.util.Set;
 
 /**
@@ -39,6 +41,7 @@ public abstract class ConnectionExternalResourceStepAnalyzer<T extends BaseStepM
 
   protected IMetaverseNode connectionNode = null;
   protected IMetaverseNode tableNode = null;
+  protected IMetaverseNode[] tableNodes = null;
 
   @Override
   protected void customAnalyze( T meta, IMetaverseNode node ) throws MetaverseAnalyzerException {
@@ -60,6 +63,14 @@ public abstract class ConnectionExternalResourceStepAnalyzer<T extends BaseStepM
     return tableNode;
   }
 
+  @Override
+  public IMetaverseNode[] createResourceNodes( IExternalResourceInfo resource ) throws MetaverseException {
+    tableNodes = createTableNodes( resource );
+    StepNodes stepNodes = isInput() ? getInputs() : getOutputs();
+    linkResourceToFields( stepNodes );
+    return tableNodes;
+  }
+
   public IMetaverseNode getConnectionNode() throws MetaverseAnalyzerException {
     connectionNode = (IMetaverseNode) getConnectionAnalyzer().analyze( getDescriptor(), baseStepMeta );
     return connectionNode;
@@ -67,8 +78,18 @@ public abstract class ConnectionExternalResourceStepAnalyzer<T extends BaseStepM
 
   protected abstract IMetaverseNode createTableNode( IExternalResourceInfo resource ) throws MetaverseAnalyzerException;
 
+
+  protected IMetaverseNode[] createTableNodes( IExternalResourceInfo resource )
+    throws MetaverseAnalyzerException {
+    return new IMetaverseNode[]{};
+  }
+
   public IMetaverseNode getTableNode() {
     return tableNode;
+  }
+
+  public IMetaverseNode[] getTableNodes() {
+    return tableNodes;
   }
 
   public void linkResourceToFields( StepNodes stepNodes ) {
@@ -78,14 +99,28 @@ public abstract class ConnectionExternalResourceStepAnalyzer<T extends BaseStepM
       for ( String fieldName : fieldNames ) {
         IMetaverseNode resNode = stepNodes.findNode( ExternalResourceStepAnalyzer.RESOURCE, fieldName );
         if ( resNode != null ) {
-          // set the column's namespace to the logical id of the table
-          resNode.setProperty( DictionaryConst.PROPERTY_NAMESPACE, getTableNode().getLogicalId() );
-          // update the db column node to force the logical id to re-generate with the updated namespace
-          getMetaverseBuilder().updateNode( resNode );
-          getMetaverseBuilder().addLink( getTableNode(), DictionaryConst.LINK_CONTAINS, resNode );
+          IMetaverseNode[] allTableNodes = getTableNodes();
+          if ( allTableNodes.length == 0 ) {
+            allTableNodes = new IMetaverseNode[]{ getTableNode() };
+          }
+          for ( final IMetaverseNode thisTableNode : allTableNodes ) {
+            if ( hasColumn( thisTableNode.getName(), resNode.getName() ) ) {
+              // set the column's namespace to the logical id of the table
+              // TODO: right now, the last one wins...  is this a problem? If we have one column be contained by more
+              // than one table? Maybe we should use the logical id of the step node instead? How do we get a
+              // reference to it?
+              resNode.setProperty( DictionaryConst.PROPERTY_NAMESPACE, thisTableNode.getLogicalId() );
+              // update the db column node to force the logical id to re-generate with the updated namespace
+              getMetaverseBuilder().updateNode( resNode );
+              getMetaverseBuilder().addLink( thisTableNode, DictionaryConst.LINK_CONTAINS, resNode );
+            }
+          }
         }
       }
     }
   }
 
+  protected boolean hasColumn( final String tableName, final String columnName ) {
+    return true;
+  }
 }

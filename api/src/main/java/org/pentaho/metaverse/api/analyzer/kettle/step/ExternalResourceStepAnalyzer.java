@@ -64,15 +64,25 @@ public abstract class ExternalResourceStepAnalyzer<T extends BaseStepMeta> exten
         try {
           if ( isInput() ) {
             String label = DictionaryConst.LINK_READBY;
-            IMetaverseNode resourceNode = createResourceNode( meta, resource );
-            getMetaverseBuilder().addNode( resourceNode );
-            getMetaverseBuilder().addLink( resourceNode, label, node );
+            IMetaverseNode[] resourceNodes = createResourceNodes( meta, resource );
+            if ( resourceNodes.length == 0 ) {
+              resourceNodes = new IMetaverseNode[] { createResourceNode( meta, resource ) };
+            }
+            for ( final IMetaverseNode resourceNode : resourceNodes ) {
+              getMetaverseBuilder().addNode( resourceNode );
+              getMetaverseBuilder().addLink( resourceNode, label, node );
+            }
           }
           if ( isOutput() ) {
             String label = DictionaryConst.LINK_WRITESTO;
-            IMetaverseNode resourceNode = createResourceNode( meta, resource );
-            getMetaverseBuilder().addNode( resourceNode );
-            getMetaverseBuilder().addLink( node, label, resourceNode );
+            IMetaverseNode[] resourceNodes = createResourceNodes( meta, resource );
+            if ( resourceNodes.length == 0 ) {
+              resourceNodes = new IMetaverseNode[] { createResourceNode( meta, resource ) };
+            }
+            for ( final IMetaverseNode resourceNode : resourceNodes ) {
+              getMetaverseBuilder().addNode( resourceNode );
+              getMetaverseBuilder().addLink( node, label, resourceNode );
+            }
           }
         } catch ( MetaverseException e ) {
           LOGGER.warn( e.getLocalizedMessage() );
@@ -243,6 +253,14 @@ public abstract class ExternalResourceStepAnalyzer<T extends BaseStepMeta> exten
 
   public IMetaverseNode createResourceNode( T meta, IExternalResourceInfo resource ) throws MetaverseException {
     return createResourceNode( resource );
+  }
+
+  public IMetaverseNode[] createResourceNodes( IExternalResourceInfo resource ) throws MetaverseException {
+    return new IMetaverseNode[]{};
+  }
+
+  public IMetaverseNode[] createResourceNodes( T meta, IExternalResourceInfo resource ) throws MetaverseException {
+    return createResourceNodes( resource );
   }
 
   public abstract String getResourceInputNodeType();
