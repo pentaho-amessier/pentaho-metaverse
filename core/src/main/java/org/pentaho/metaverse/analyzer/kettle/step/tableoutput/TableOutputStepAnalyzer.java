@@ -124,9 +124,7 @@ public class TableOutputStepAnalyzer extends ConnectionExternalResourceStepAnaly
   @Override
   public Set<String> getOutputResourceFields( TableOutputMeta meta ) {
     String[] fieldArray = meta.getFieldDatabase();
-    // !meta.specifyFields() condition can be removed if necessary since it is some kind of overhead --Kaa
-    // Additional info: http://jira.pentaho.com/browse/PDI-14959
-    if ( ArrayUtils.isEmpty( fieldArray ) && !meta.specifyFields() ) {
+    if ( ArrayUtils.isEmpty( fieldArray ) || !meta.specifyFields() ) {
       fieldArray = getOutputFields( meta ).getFieldNames();
     }
     Set<String> fields = new LinkedHashSet<>( Arrays.asList( fieldArray ) );
@@ -136,8 +134,8 @@ public class TableOutputStepAnalyzer extends ConnectionExternalResourceStepAnaly
   @Override
   public Set<ComponentDerivationRecord> getChangeRecords( TableOutputMeta meta ) throws MetaverseAnalyzerException {
     Set<ComponentDerivationRecord> changes = new HashSet<>();
-    String[] tableFields = meta.getFieldDatabase();
-    String[] streamFields = meta.getFieldStream();
+    String[] tableFields = meta.specifyFields() ? meta.getFieldDatabase() : new String[]{};
+    String[] streamFields = meta.specifyFields() ? meta.getFieldStream() : new String[]{};
     if ( getInputs() != null ) {
       Set<String> stepNames = getInputs().getStepNames();
       for ( int i = 0; i < tableFields.length; i++ ) {

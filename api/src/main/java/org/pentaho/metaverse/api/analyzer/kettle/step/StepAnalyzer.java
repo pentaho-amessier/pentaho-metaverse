@@ -26,6 +26,8 @@ import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.MapUtils;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 import org.pentaho.di.core.ProgressNullMonitorListener;
 import org.pentaho.di.core.exception.KettleStepException;
 import org.pentaho.di.core.plugins.PluginRegistry;
@@ -51,8 +53,6 @@ import org.pentaho.metaverse.api.analyzer.kettle.BaseKettleMetaverseComponent;
 import org.pentaho.metaverse.api.analyzer.kettle.ComponentDerivationRecord;
 import org.pentaho.metaverse.api.messages.Messages;
 import org.pentaho.metaverse.api.model.kettle.IFieldMapping;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -66,7 +66,7 @@ import java.util.UUID;
 public abstract class StepAnalyzer<T extends BaseStepMeta> extends BaseKettleMetaverseComponent implements
   IClonableStepAnalyzer<T>, IFieldLineageMetadataProvider<T> {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger( StepAnalyzer.class );
+  private static final Logger LOGGER = LogManager.getLogger( StepAnalyzer.class );
   public static final String NONE = "_none_";
 
   protected IComponentDescriptor descriptor;
@@ -111,6 +111,9 @@ public abstract class StepAnalyzer<T extends BaseStepMeta> extends BaseKettleMet
 
   @Override
   public IMetaverseNode analyze( IComponentDescriptor descriptor, T meta ) throws MetaverseAnalyzerException {
+
+    LOGGER.info( Messages.getString( "INFO.runningAnalyzer", meta.getParentStepMeta().getParentTransMeta().getName(),
+      meta.getParentStepMeta().getName() ) );
 
     setDescriptor( descriptor );
     baseStepMeta = meta;
@@ -240,13 +243,19 @@ public abstract class StepAnalyzer<T extends BaseStepMeta> extends BaseKettleMet
       List<IMetaverseNode> outputNodes = new ArrayList<>();
 
       if ( StringUtils.isNotEmpty( change.getOriginalEntityStepName() ) ) {
-        inputNodes.add( getInputs().findNode( change.getOriginalField() ) );
+        final IMetaverseNode inputNode = getInputs().findNode( change.getOriginalField() );
+        if ( inputNode != null ) {
+          inputNodes.add( inputNode );
+        }
       } else {
         inputNodes.addAll( getInputs().findNodes( change.getOriginalEntityName() ) );
       }
 
       if ( StringUtils.isNotEmpty( change.getChangedEntityStepName() ) ) {
-        outputNodes.add( getOutputs().findNode( change.getChangedField() ) );
+        final IMetaverseNode outputNode =  getOutputs().findNode( change.getChangedField() );
+        if ( outputNode != null ) {
+          outputNodes.add( outputNode );
+        }
       } else {
         outputNodes.addAll( getOutputs().findNodes( change.getChangedEntityName() ) );
       }
@@ -349,9 +358,14 @@ public abstract class StepAnalyzer<T extends BaseStepMeta> extends BaseKettleMet
 
   protected IMetaverseNode createFieldNode( IComponentDescriptor fieldDescriptor, ValueMetaInterface fieldMeta,
                                             String targetStepName, boolean addTheNode ) {
+    return createFieldNode( fieldDescriptor, fieldMeta.getTypeDesc(), targetStepName, addTheNode );
+  }
+
+  protected IMetaverseNode createFieldNode( IComponentDescriptor fieldDescriptor, String kettleType,
+                                            String targetStepName, boolean addTheNode ) {
 
     IMetaverseNode newFieldNode = createNodeFromDescriptor( fieldDescriptor );
-    newFieldNode.setProperty( DictionaryConst.PROPERTY_KETTLE_TYPE, fieldMeta.getTypeDesc() );
+    newFieldNode.setProperty( DictionaryConst.PROPERTY_KETTLE_TYPE, kettleType );
 
     // don't add it to the graph if it is a transient node
     if ( targetStepName != null ) {
@@ -695,6 +709,42 @@ public abstract class StepAnalyzer<T extends BaseStepMeta> extends BaseKettleMet
       return true;
     }
     return false;
+  }
+
+  protected IMetaverseNode getNode( final String name, final String type, final String namespaceId, final String nodeKey,
+                                  final Map<String, IMetaverseNode> nodeMap ) {
+    return getNode( name, type, new Namespace( namespaceId ), nodeKey, nodeMap );
+  }
+
+  protected IMetaverseNode getNode( final String name, final String type, final INamespace namespace,
+                                    final String nodeKey, final Map<String, IMetaverseNode> nodeMap ) {
+    IMetaverseNode node = nodeMap == null ? null : nodeMap.get( nodeKey );
+    if ( node == null ) {
+      node = createNode( name, type, namespace );
+      if ( nodeMap != null ) {
+        nodeMap.put( nodeKey, node );
+      }
+    }
+    return node;
+  }
+
+  protected IMetaverseNode createNode( final String name, final String type, final INamespace namespace ) {
+    final IComponentDescriptor descriptor = new MetaverseComponentDescriptor( name, type, namespace );
+    final IMetaverseNode node = createNodeFromDescriptor( descriptor );
+    node.setProperty( DictionaryConst.NODE_VIRTUAL, false );
+    return node;
+  }
+
+  protected IMetaverseNode getVirtualNode( final String name, final String type, final INamespace namespace,
+                                           final String nodeKey, final Map<String, IMetaverseNode> nodeMap ) {
+    IMetaverseNode node = getNode( name, type, namespace, nodeKey, nodeMap );
+    node.setProperty( DictionaryConst.NODE_VIRTUAL, true );
+    return node;
+  }
+
+  protected IMetaverseNode getVirtualNode( final String name, final String type, final String namespaceId,
+                                         final String nodeKey, final Map<String, IMetaverseNode> nodeMap ) {
+    return getVirtualNode( name, type, new Namespace( namespaceId ), nodeKey, nodeMap );
   }
 
 }
