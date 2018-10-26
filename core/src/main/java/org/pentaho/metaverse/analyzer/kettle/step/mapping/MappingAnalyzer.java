@@ -22,13 +22,21 @@
 
 package org.pentaho.metaverse.analyzer.kettle.step.mapping;
 
+import com.google.common.collect.ImmutableMap;
+import com.tinkerpop.blueprints.Direction;
+import com.tinkerpop.blueprints.Vertex;
+import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
+import org.pentaho.di.i18n.BaseMessages;
 import org.pentaho.di.trans.TransHopMeta;
 import org.pentaho.di.trans.TransMeta;
 import org.pentaho.di.trans.step.BaseStepMeta;
+import org.pentaho.di.trans.step.StepMeta;
 import org.pentaho.di.trans.steps.mapping.MappingIODefinition;
 import org.pentaho.di.trans.steps.mapping.MappingMeta;
 import org.pentaho.di.trans.steps.mapping.MappingValueRename;
+import org.pentaho.di.trans.steps.mappinginput.MappingInputMeta;
+import org.pentaho.di.trans.steps.mappingoutput.MappingOutput;
 import org.pentaho.dictionary.DictionaryConst;
 import org.pentaho.metaverse.api.IMetaverseNode;
 import org.pentaho.metaverse.api.MetaverseAnalyzerException;
@@ -39,6 +47,7 @@ import org.pentaho.metaverse.api.analyzer.kettle.step.StepAnalyzer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -61,10 +70,11 @@ public class MappingAnalyzer extends StepAnalyzer<MappingMeta> {
   protected void customAnalyze( final MappingMeta meta, final IMetaverseNode rootNode )
     throws MetaverseAnalyzerException {
 
-    final String transformationPath = parentTransMeta.environmentSubstitute( meta.getTransName() );
+    final String transformationPath = parentTransMeta.environmentSubstitute( meta.getFileName() );
     rootNode.setProperty( "subTransformation", transformationPath );
 
     final TransMeta subTransMeta = KettleAnalyzerUtil.getSubTransMeta( meta );
+    subTransMeta.setFilename( transformationPath );
 
     final IMetaverseNode subTransNode = getNode( subTransMeta.getName(), DictionaryConst.NODE_TYPE_TRANS,
       descriptor.getNamespace(), null, null );
@@ -73,6 +83,10 @@ public class MappingAnalyzer extends StepAnalyzer<MappingMeta> {
     subTransNode.setLogicalIdGenerator( DictionaryConst.LOGICAL_ID_GENERATOR_DOCUMENT );
 
     metaverseBuilder.addLink( rootNode, DictionaryConst.LINK_EXECUTES, subTransNode );
+
+    // analyze the sub-transformation
+    documentAnalyzer.analyze( documentDescriptor, subTransMeta, subTransNode,
+      KettleAnalyzerUtil.getSubTransMetaPath( meta, subTransMeta ) );
 
     // ----------- analyze inputs, for each input:
     // - create a virtual step node for the input source step, the step name is either defined "input source step
@@ -99,9 +113,7 @@ public class MappingAnalyzer extends StepAnalyzer<MappingMeta> {
 
     // When "Update mapped field names" is selected, the name of the parent field is used, rather than the sub-trans
     // field and vice versa
-    // TODO: what if no fields are defined in output? do we get all?
-
-    createOutputFields( subTransMeta, subTransNode, meta );
+    createLinks( subTransMeta, meta );
     rootNode.setProperty( DictionaryConst.PROPERTY_VERBOSE_DETAILS, StringUtils.join( verboseProps, "," ) );
   }
 
@@ -115,85 +127,187 @@ public class MappingAnalyzer extends StepAnalyzer<MappingMeta> {
     return false;
   }
 
-  private void createOutputFields( final TransMeta subTransMeta, final IMetaverseNode subTransNode,
-                                   final MappingMeta meta ) {
-    final Map<String, IMetaverseNode> nodes = new HashMap();
+  private static final String MAPPING_INPUT_SPEC = BaseMessages.getString(
+    MappingInputMeta.class, "MappingInputDialog.Shell.Title");
+
+  private static final String MAPPING_OUTPUT_SPEC = BaseMessages.getString(
+    MappingOutput.class, "MappingOutputDialog.Shell.Title");
+
+  /*
+  private Vertex findStepVertex( final TransMeta transMeta, final Map<String, String> properties,
+                                     final Vertex linedVertex, final Direction direction, final String linkLabel ) {
+    final List<Vertex> potentialMatches = findVertices( transMeta, properties );
+    for ( final Vertex potentialMatch : potentialMatches ) {
+      final Iterator<Vertex> linkedVertivces = potentialMatch.getVertices( direction, linkLabel ).iterator();
+      while ( linkedVertivces.hasNext() ) {
+        final Vertex hoppingVertex = linkedVertivces.next();
+        if ( hoppingVertex.equals( linedVertex ) ) {
+          return potentialMatch;
+        }
+      }
+    }
+    return null;
+  }*/
+
+  private Vertex getInputSourceStepVertex( final TransMeta transMeta, final MappingIODefinition mapping ) {
+    // get the vertex corresponding to the input source step; if "Main data path" is selected, this it the input
+    // step (assuming there is only one) into this mapping step; if "Main data path" is not selected, it is the
+    // step defined within the "Input source step name" field
+    String stepName = null;
+    if ( mapping != null ) {
+      if ( mapping.isMainDataPath() ) {
+        // TODO: warn if more than one previous step, invalid configuration
+        stepName = ArrayUtils.isEmpty( prevStepNames ) ? null : prevStepNames[ 0 ];
+      } else {
+        // main path is not selected, therefore we can further refine our search by looking up the step by the name
+        // defined in the "Mapping target step name" field
+        stepName = mapping.getInputStepname();
+      }
+    }
+    return findStepVertex( transMeta, stepName );
+  }
+
+  private Vertex getInputTargetStepVertex( final TransMeta transMeta, final MappingIODefinition mapping ) {
+    // find the "Mapping input specification" step within the sub-transformation - there might be more than one,
+    // if we have more than one "Mapping (sub-transformationn)" step within this ktr, so we need to find the one
+    // connected to this specific sub-transformation
+    final Map<String, String> propsLookupMap = new HashMap();
+    propsLookupMap.put( DictionaryConst.PROPERTY_STEP_TYPE, MAPPING_INPUT_SPEC );
+    if ( mapping != null && !mapping.isMainDataPath() ) {
+      // main path is not selected, therefore we can further refine our search by looking up the step by the name
+      // defined in the "Mapping target step name" field
+      propsLookupMap.put( DictionaryConst.PROPERTY_NAME, mapping.getOutputStepname() );
+    }
+    return findStepVertex( transMeta, propsLookupMap );
+  }
+
+  private Vertex getOutputSourceStepVertex( final TransMeta transMeta, final MappingIODefinition mapping ) {
+    // find the "Mapping output specification" step within the sub-transformation - there might be more than one,
+    // if we have more than one "Mapping (sub-transformationn)" step within this ktr, so we need to find the one
+    // connected to this specific sub-transformation
+    final Map<String, String> propsLookupMap = new HashMap();
+    propsLookupMap.put( DictionaryConst.PROPERTY_STEP_TYPE, MAPPING_OUTPUT_SPEC );
+    if ( mapping != null && !mapping.isMainDataPath() ) {
+      // main path is not selected, therefore we can further refine our search by looking up the step by the name
+      // defined in the "Mapping source step name" field
+      propsLookupMap.put( DictionaryConst.PROPERTY_NAME, mapping.getInputStepname() );
+    }
+    return findStepVertex( transMeta, propsLookupMap );
+  }
+
+  private Vertex getOutputTargetStepVertex( final TransMeta transMeta, final MappingIODefinition mapping ) {
+    // get the vertex corresponding to the output target step; if "Main data path" is selected, this it the output
+    // step (assuming there is only one) from this mapping step; if "Main data path" is not selected, it is the
+    // step defined within the "Output target step name" field
+    final Map<String, String> propsLookupMap = new HashMap();
+    propsLookupMap.put( DictionaryConst.PROPERTY_TYPE, DictionaryConst.NODE_TYPE_TRANS_STEP );
+    if ( mapping != null && !mapping.isMainDataPath() ) {
+      // main path is not selected, therefore we can further refine our search by looking up the step by the name
+      // defined in the "Mapping target step name" field
+      propsLookupMap.put( DictionaryConst.PROPERTY_NAME, mapping.getOutputStepname() );
+    } else {
+      // TODO: once we move this procesing to "postAnalyze", we won't need to work on transMeta hops directly, we'll
+      // be able to look at the HOPS_TO links
+      // we are using the main data path - that means we need to find the step that this step hops to; since the
+      // "hops_to" links will not have been established yet for this step, we need to inspect the transMeta hops to
+      // find the name of the step of intrest
+      final int numHops = transMeta.nrTransHops();
+      for ( int i = 0; i < numHops; i++ ) {
+        final TransHopMeta hop = transMeta.getTransHop( i );
+        final StepMeta fromStep = hop.getFromStep();
+        if ( fromStep.getName().equalsIgnoreCase( rootNode.getName() ) ) {
+          // we found a hop originating from this step, the source of this hop is the target node we are interested in
+          propsLookupMap.put( DictionaryConst.PROPERTY_NAME, hop.getToStep().getName() );
+        }
+      }
+    }
+    return findStepVertex( transMeta, propsLookupMap );
+  }
+
+  private void createLinks( final TransMeta subTransMeta, final MappingMeta meta ) {
+    // TODO: take this into account when creating "derives" links so the links are made between the right fields
     boolean renameFields = shouldRenameFields( meta );
+
+    final Map<String, String> fieldRenames = new HashMap();
 
     for ( final MappingIODefinition inputMapping : meta.getInputMappings() ) {
 
-      // create a virtual node to represent the sub transformation's mapping input target step
-      final String subTransInputTargetStepName = getTargetStepName( subTransMeta, inputMapping, false, true );
-      IMetaverseNode subTransInputTargetNode = getVirtualNode( subTransInputTargetStepName,
-        DictionaryConst.NODE_TYPE_TRANS_STEP, descriptor.getNamespace(), subTransInputTargetStepName, nodes );
-      metaverseBuilder.addLink( subTransNode, DictionaryConst.LINK_CONTAINS, subTransInputTargetNode );
+      final Vertex inputSourceVertex = getInputSourceStepVertex( parentTransMeta, inputMapping );
+      final Vertex inputTargetVertex = getInputTargetStepVertex( subTransMeta, inputMapping );
+      final String inputTargetName = inputTargetVertex.getProperty( DictionaryConst.PROPERTY_NAME );
 
-      // for every field defined in the input tab, check first which column to get based on the value of
-      // 'renameFields', then create a field with that name, with the target field corresponding to the target in the
-      // output mapping, if one exists
-      for ( final MappingValueRename inputFieldRename : inputMapping.getValueRenames() ) {
-        final String inputSubTransFieldName = renameFields ? inputFieldRename.getSourceValueName()
-          : inputFieldRename.getTargetValueName();
-        final IMetaverseNode outputFieldNode = getNode( inputSubTransFieldName,
-          DictionaryConst.NODE_TYPE_TRANS_FIELD, (String) rootNode.getProperty(
-            DictionaryConst.PROPERTY_LOGICAL_ID ), rootNode.getName() + ":" + inputSubTransFieldName, nodes );
-        metaverseBuilder.addLink( rootNode, DictionaryConst.LINK_OUTPUTS, outputFieldNode );
+      final List<MappingValueRename> renames = inputMapping.getValueRenames();
+      for ( final MappingValueRename rename : renames ) {
+        // This is deliberately target > source, since we are going to be looking up the target to rename back to the
+        // source
+        fieldRenames.put( rename.getTargetValueName(), rename.getSourceValueName() );
+      }
 
-        // find an input field whose name matches that defined in the input source of the input mapping, if it exists
-        final IMetaverseNode matchingInputFieldNode = getInputs().findNode(
-          getSourceStepName( subTransMeta, inputMapping, false, true ), inputFieldRename.getSourceValueName() );
-        // create a virtual output field representing the rename target - this field is contained by
-        // 'subTransInputTargetNode'
-        final IMetaverseNode subTransOutputFieldNode = getVirtualNode( inputFieldRename.getTargetValueName(),
-          DictionaryConst.NODE_TYPE_TRANS_FIELD, (String) subTransInputTargetNode.getProperty(
-            DictionaryConst.PROPERTY_LOGICAL_ID ), subTransInputTargetNode.getName() + ":"
-            + inputFieldRename.getTargetValueName(), nodes );
-        metaverseBuilder.addLink( subTransInputTargetNode, DictionaryConst.LINK_OUTPUTS, subTransOutputFieldNode );
-        // create an "input" link from the matching field to thesubTransOutputFieldNode and a "derives" link from the
-        // input node to subTransOutputFieldNode
-        if ( matchingInputFieldNode != null ) {
-          metaverseBuilder.addLink( matchingInputFieldNode, DictionaryConst.LINK_INPUTS, subTransInputTargetNode );
-          metaverseBuilder.addLink( matchingInputFieldNode, DictionaryConst.LINK_DERIVES, subTransOutputFieldNode );
-        }
-        // and a link from subTransOutputFieldNode to the outputNode
-        metaverseBuilder.addLink( subTransOutputFieldNode, DictionaryConst.LINK_DERIVES, outputFieldNode );
+      // traverse output fields of the input source step
+      // for each field, if a rename exists, create a "derives" link from the field to the input target field with
+      // the name defined in the "Fieldname to mapping input step" column; otherwise create a "derives" link to a
+      // field with the same name
+      final Iterator<Vertex> inputSourceOutputFields = inputSourceVertex.getVertices( Direction.OUT,
+        DictionaryConst.LINK_OUTPUTS ).iterator();
+      while ( inputSourceOutputFields.hasNext() ) {
+        final Vertex inputSourceOutputField = inputSourceOutputFields.next();
+        final String inputSourceOutputFieldName = inputSourceOutputField.getProperty( DictionaryConst.PROPERTY_NAME );
+        // is there a rename for this field?
+        final MappingValueRename renameMapping = inputMapping.getValueRenames().stream().filter( rename ->
+          inputSourceOutputFieldName.equals( rename.getSourceValueName() ) ).findAny().orElse( null );
+        // if there is no rename for this field, we look for a field with the same name, otherwise we look for a field
+        // that is the target of the rename mapping ( defined within the "Fieldname to mapping input step" column);
+        // we look for this field within the sub-transformation and within the context of the input target step
+        final String derivedFieldName = renameMapping == null ? inputSourceOutputFieldName
+          : renameMapping.getTargetValueName();
+        final Vertex derivedField = findFieldVertex( subTransMeta, inputTargetName, derivedFieldName );
+        // add an "inputs" link from the field of the input source step to the input target step
+        metaverseBuilder.addLink( inputSourceOutputField, DictionaryConst.LINK_INPUTS, inputTargetVertex );
+        // add a "derives" link from the field of the input source step to the output field of the input target step
+        metaverseBuilder.addLink( inputSourceOutputField, DictionaryConst.LINK_DERIVES, derivedField );
       }
     }
 
     for ( final MappingIODefinition outputMapping : meta.getOutputMappings() ) {
-      final String subTransOutputSourceStepName = getSourceStepName( subTransMeta, outputMapping, false, false );
 
-      // ... and if a corresponding outputMapping exists, create a virtual node corresponding to the output source step
-      IMetaverseNode subTransOutputSourceNode = getVirtualNode( subTransOutputSourceStepName,
-        DictionaryConst.NODE_TYPE_TRANS_STEP, descriptor.getNamespace(), subTransOutputSourceStepName, nodes );
-      metaverseBuilder.addLink( subTransNode, DictionaryConst.LINK_CONTAINS, subTransOutputSourceNode );
+      final Vertex outputSourceVertex = getOutputSourceStepVertex( subTransMeta, outputMapping );
+      final Vertex outputTargetVertex = getOutputTargetStepVertex( parentTransMeta, outputMapping );
+      final String outputTargetName = outputTargetVertex.getProperty( DictionaryConst.PROPERTY_NAME );
 
-      // if any fields are defined in for the output mapping and the subTransOutputStepField exists, for each field
-      // defined in the output tab, create a virtual field with the name from the source column that the
-      // subTransOutputStepField "outputs", a field node with the name from the target column that the root node
-      // outputs and and a "derives" link between the fields
-      for ( final MappingValueRename outputFieldRename : outputMapping.getValueRenames() ) {
-        final String subTransInputFieldName = outputFieldRename.getSourceValueName();
-        final IMetaverseNode subTransInputFieldNode = getVirtualNode( subTransInputFieldName,
-          DictionaryConst.NODE_TYPE_TRANS_FIELD, (String) subTransOutputSourceNode.getProperty(
-            DictionaryConst.PROPERTY_LOGICAL_ID ), subTransOutputSourceNode.getName()
-            + ":" + subTransInputFieldName, nodes );
-        subTransInputFieldNode.setProperty( DictionaryConst.PROPERTY_TARGET_STEP, rootNode.getName() );
-        metaverseBuilder.addLink( subTransOutputSourceNode, DictionaryConst.LINK_OUTPUTS, subTransInputFieldNode );
+      // traverse output fields of the output source step
+      // for each field, if a rename exists, create a "derives" link from the field to the input target field with
+      // the name defined in the "Fieldname to mapping input step" column; otherwise create a "derives" link to a
+      // field with the same name
+      final Iterator<Vertex> outputSourceFields = outputSourceVertex.getVertices( Direction.OUT,
+        DictionaryConst.LINK_OUTPUTS ).iterator();
 
-        final String outputFieldName = outputFieldRename.getTargetValueName();
-        final IMetaverseNode outputFieldNode = getNode( outputFieldName,
-          DictionaryConst.NODE_TYPE_TRANS_FIELD, (String) rootNode.getProperty(
-            DictionaryConst.PROPERTY_LOGICAL_ID ), subTransOutputSourceNode.getName() + ":" + outputFieldName, nodes );
-        // set the target step for this field node as the target from the corresponding output mapping
-        outputFieldNode.setProperty( DictionaryConst.PROPERTY_TARGET_STEP,
-          getTargetStepName( subTransMeta, outputMapping, false, false ) );
-        metaverseBuilder.addLink( rootNode, DictionaryConst.LINK_OUTPUTS, outputFieldNode );
-        metaverseBuilder.addLink( subTransInputFieldNode, DictionaryConst.LINK_DERIVES, outputFieldNode );
+      while ( outputSourceFields.hasNext() ) {
+        final Vertex outputSourceField = outputSourceFields.next();
+        final String outputSourceFieldName = outputSourceField.getProperty( DictionaryConst.PROPERTY_NAME );
+        String derivedFieldName = outputSourceFieldName;
+        // is there a rename mapping for this field?
+        final MappingValueRename renameMapping = outputMapping.getValueRenames().stream().filter( rename ->
+          outputSourceFieldName.equals( rename.getSourceValueName() ) ).findAny().orElse( null );
+        // if an output rename mapping exists for this field, use the target field name for the derived field
+        if ( renameMapping != null ) {
+          derivedFieldName = renameMapping.getTargetValueName();
+        } else if ( renameFields && fieldRenames.containsKey( outputSourceFieldName ) ) {
+          // if no rename mapping exists, check if the field is defined within fieldRenamed
+          derivedFieldName = fieldRenames.get( outputSourceFieldName );
+        }
+        final Vertex derivedField = findFieldVertex( parentTransMeta, outputTargetName, derivedFieldName );
+        // add an "inputs" link from the field of the input source step to the input target step
+        metaverseBuilder.addLink( outputSourceField, DictionaryConst.LINK_INPUTS, outputTargetVertex );
+        // add a "derives" link from the field of the output source step to the output field of the output target step
+        metaverseBuilder.addLink( outputSourceField, DictionaryConst.LINK_DERIVES, derivedField );
+        // TODO:
+        // if we are renaming a field, it's likely that the outputTargetVertex has an input vertex correspnding to
+        // the field name before the rename occurred - this field should me removed, as it is not needed
       }
     }
   }
 
+  // TODO: redo this - we can now access the actual steps, even when main path is selected
   private void processInputMappings( final TransMeta subTransMeta, final List<String> verboseProps,
                                      final List<MappingIODefinition> inputMappings ) {
     int mappingIdx = 1;
@@ -217,6 +331,7 @@ public class MappingAnalyzer extends StepAnalyzer<MappingMeta> {
     }
   }
 
+  // TODO: redo this - we can now access the actual steps, even when main path is selected
   private void processOutputMappings( final TransMeta subTransMeta, final List<String> verboseProps,
                                       final List<MappingIODefinition> mappings ) {
     int mappingIdx = 1;

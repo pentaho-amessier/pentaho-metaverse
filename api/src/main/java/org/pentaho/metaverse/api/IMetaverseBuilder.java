@@ -24,6 +24,7 @@ package org.pentaho.metaverse.api;
 
 
 import com.tinkerpop.blueprints.Graph;
+import com.tinkerpop.blueprints.Vertex;
 
 /**
  * The IMetaverseBuilder is a Builder that creates and maintains a metaverse model, which contains nodes and links.
@@ -56,6 +57,8 @@ public interface IMetaverseBuilder {
    * @return the i metaverse builder
    */
   IMetaverseBuilder addLink( IMetaverseNode fromNode, String label, IMetaverseNode toNode );
+
+  void addLink( Vertex fromVertex, String label, Vertex toVertex );
 
   /**
    * Deletes the specified node from the metaverse model.

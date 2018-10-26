@@ -22,9 +22,12 @@
 
 package org.pentaho.metaverse.api.analyzer.kettle.step;
 
+import com.tinkerpop.blueprints.Direction;
+import com.tinkerpop.blueprints.Vertex;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.MapUtils;
 import org.apache.commons.lang.ArrayUtils;
+import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
@@ -40,6 +43,7 @@ import org.pentaho.di.trans.step.BaseStepMeta;
 import org.pentaho.di.trans.step.StepMeta;
 import org.pentaho.dictionary.DictionaryConst;
 import org.pentaho.metaverse.api.IAnalysisContext;
+import org.pentaho.metaverse.api.IClonableDocumentAnalyzer;
 import org.pentaho.metaverse.api.IComponentDescriptor;
 import org.pentaho.metaverse.api.IConnectionAnalyzer;
 import org.pentaho.metaverse.api.IMetaverseNode;
@@ -58,6 +62,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -65,6 +70,10 @@ import java.util.UUID;
 
 public abstract class StepAnalyzer<T extends BaseStepMeta> extends BaseKettleMetaverseComponent implements
   IClonableStepAnalyzer<T>, IFieldLineageMetadataProvider<T> {
+
+  protected IClonableDocumentAnalyzer documentAnalyzer;
+  protected IComponentDescriptor documentDescriptor;
+  protected String documentPath;
 
   private static final Logger LOGGER = LogManager.getLogger( StepAnalyzer.class );
   public static final String NONE = "_none_";
@@ -581,17 +590,12 @@ public abstract class StepAnalyzer<T extends BaseStepMeta> extends BaseKettleMet
     this.connectionAnalyzer = connectionAnalyzer;
   }
 
-  @Override
-  public Map<String, RowMetaInterface> getInputFields( T meta ) {
+  public Map<String, RowMetaInterface> getInputFields( final TransMeta parentTransMeta,
+                                                       final StepMeta parentStepMeta ) {
     Map<String, RowMetaInterface> rowMeta = null;
-    try {
-      validateState( null, meta );
-    } catch ( MetaverseAnalyzerException e ) {
-      // eat it
-    }
     if ( parentTransMeta != null ) {
       try {
-        rowMeta = new HashMap<String, RowMetaInterface>();
+        rowMeta = new HashMap();
         ProgressNullMonitorListener progressMonitor = new ProgressNullMonitorListener();
         prevStepNames = parentTransMeta.getPrevStepNames( parentStepMeta );
         RowMetaInterface rmi = parentTransMeta.getPrevStepFields( parentStepMeta, progressMonitor );
@@ -604,6 +608,16 @@ public abstract class StepAnalyzer<T extends BaseStepMeta> extends BaseKettleMet
       }
     }
     return rowMeta;
+  }
+
+  @Override
+  public Map<String, RowMetaInterface> getInputFields( T meta ) {
+    try {
+      validateState( null, meta );
+    } catch ( MetaverseAnalyzerException e ) {
+      // eat it
+    }
+    return getInputFields( parentTransMeta, parentStepMeta );
   }
 
   /**
@@ -747,4 +761,144 @@ public abstract class StepAnalyzer<T extends BaseStepMeta> extends BaseKettleMet
     return getVirtualNode( name, type, new Namespace( namespaceId ), nodeKey, nodeMap );
   }
 
+  @Override
+  public void setDocumentAnalyzer( final IClonableDocumentAnalyzer documentAnalyzer ) {
+    this.documentAnalyzer = documentAnalyzer;
+  }
+
+  @Override
+  public void setDocumentDescriptor( final IComponentDescriptor documentDescriptor ) {
+    this.documentDescriptor = documentDescriptor;
+  }
+
+  @Override
+  public void setDocumentPath( final String documentPath ) {
+    this.documentPath = documentPath;
+  }
+
+  // TODO: move to common place?
+  private String normalizePath( final String path ) {
+    if ( StringUtils.isNotBlank( path ) ) {
+      return path.replaceAll( "/", StringEscapeUtils.escapeJava( "/" ) )
+        .replaceAll(  "\\\\", StringEscapeUtils.escapeJava( "/" ) ).replaceAll( "file:///", "" ).replaceAll( "file://", "" );
+    }
+    return path;
+  }
+
+
+  // TODO: move to MetaverseUtil?
+
+  public Vertex findVertexById( final String id ) {
+    final Iterator<Vertex> vertices = getMetaverseBuilder().getGraph().getVertices().iterator();
+
+    while( vertices.hasNext() ) {
+      final Vertex vertex = vertices.next();
+      if ( vertex.getId().equals( id ) ) {
+        return vertex;
+      }
+    }
+    return null;
+  }
+
+  public Vertex findVertex( final Map<String, String> properties ) {
+    final List<Vertex> matchingVertices = findVertices( properties );
+    if ( matchingVertices.size() > 0 ) {
+      // TODO: log is more than 1
+      return matchingVertices.get( 0 );
+    }
+    return null;
+  }
+
+  public List<Vertex> findVertices( final Map<String, String> properties ) {
+    return findVertices( getMetaverseBuilder().getGraph().getVertices().iterator(), properties );
+  }
+
+  public List<Vertex> findVertices( final Iterator<Vertex> vertices, final Map<String, String> properties ) {
+    final List<Vertex> matchingNodes = new ArrayList();
+
+    outer: while( vertices.hasNext() ) {
+      final Vertex vertex = vertices.next();
+
+      final Iterator<Map.Entry<String, String>> propsIter = properties.entrySet().iterator();
+      while ( propsIter.hasNext() ) {
+        final Map.Entry<String, String> property = propsIter.next();
+        final String propName = property.getKey();
+        final String propValue = property.getValue();
+        if ( vertex.getProperty( propName ) == null || !vertex.getProperty( propName ).equals( propValue ) ) {
+          continue outer;
+        }
+      }
+      // all properties should match
+      matchingNodes.add( vertex );
+    }
+    return matchingNodes;
+  }
+
+  public Vertex findStepVertex( final TransMeta transMeta, final String stepName ) {
+    final Map<String, String> propsLookupMap = new HashMap();
+    propsLookupMap.put( DictionaryConst.PROPERTY_NAME, stepName );
+    return findStepVertex( transMeta, propsLookupMap );
+  }
+
+
+  public Vertex findStepVertex( final TransMeta transMeta, final Map<String, String> properties ) {
+    final List<Vertex> matchingVertices = findStepVertices( transMeta, properties );
+    if ( matchingVertices.size() > 0 ) {
+      // TODO: log is more than 1
+      return matchingVertices.get( 0 );
+    }
+    return null;
+  }
+
+  public List<Vertex> findStepVertices( final TransMeta transMeta, final Map<String, String> properties ) {
+
+    final List<Vertex> matchingNodes = new ArrayList();
+    final Map<String, String> propsLookupMap = new HashMap( properties );
+    propsLookupMap.put( DictionaryConst.PROPERTY_TYPE, DictionaryConst.NODE_TYPE_TRANS_STEP );
+    final List<Vertex> potentialMatches = findVertices( propsLookupMap );
+    final String transPath = normalizePath( transMeta.getFilename() );
+    // inspect input "contains" links for each vertex, when a "containing" transformation with a matching path is
+    // found, we have the  vertex we need
+    for ( final Vertex potentialMatch : potentialMatches ) {
+      final Iterator<Vertex> containingVertices = potentialMatch.getVertices( Direction.IN,
+        DictionaryConst.LINK_CONTAINS ).iterator();
+      while ( containingVertices.hasNext() ) {
+        final Vertex containingVertex = containingVertices.next();
+        final String containingVertexPath = normalizePath(
+          containingVertex.getProperty( DictionaryConst.PROPERTY_PATH ) );
+        if ( transPath.equalsIgnoreCase( containingVertexPath ) ) {
+          matchingNodes.add( potentialMatch );
+        }
+      }
+    }
+    return matchingNodes;
+  }
+
+  protected Vertex findFieldVertex( final TransMeta transMeta, final String stepName,
+                                    final String fieldName ) {
+    final List<Vertex> matchingVertices = findFieldVertices( transMeta, stepName, fieldName );
+    if ( matchingVertices.size() > 0 ) {
+      // TODO: log is more than 1
+      return matchingVertices.get( 0 );
+    }
+    return null;
+  }
+
+  protected List<Vertex> findFieldVertices( final TransMeta transMeta, final String stepName,
+                                            final String fieldName ) {
+    final Map<String, String> propsLookupMap = new HashMap();
+    propsLookupMap.put( DictionaryConst.PROPERTY_NAME, fieldName );
+    return findFieldVertices( transMeta, stepName, propsLookupMap );
+  }
+
+  protected List<Vertex> findFieldVertices( final TransMeta transMeta, final String stepName,
+                                            final Map<String, String> properties ) {
+
+    final Vertex stepVertex = findStepVertex( transMeta, stepName );
+
+    final Map<String, String> propsLookupMap = new HashMap( properties );
+    propsLookupMap.put( DictionaryConst.PROPERTY_TYPE, DictionaryConst.NODE_TYPE_TRANS_FIELD );
+    return findVertices( stepVertex.getVertices( Direction.OUT, DictionaryConst.LINK_OUTPUTS ).iterator(),
+      propsLookupMap );
+  }
 }

@@ -23,6 +23,8 @@
 package org.pentaho.metaverse.api.analyzer.kettle.step;
 
 import org.pentaho.di.trans.step.BaseStepMeta;
+import org.pentaho.metaverse.api.IClonableDocumentAnalyzer;
+import org.pentaho.metaverse.api.IComponentDescriptor;
 
 public interface IClonableStepAnalyzer<T extends BaseStepMeta> extends IStepAnalyzer<T> {
 
@@ -32,4 +34,10 @@ public interface IClonableStepAnalyzer<T extends BaseStepMeta> extends IStepAnal
    * @return a clone of this {@link IClonableStepAnalyzer}
    */
   IClonableStepAnalyzer cloneAnalyzer();
+
+  void setDocumentAnalyzer( final IClonableDocumentAnalyzer parentTransformationAnalyser );
+
+  void setDocumentDescriptor( final IComponentDescriptor documentDescriptor );
+
+  void setDocumentPath( final String documentPath );
 }

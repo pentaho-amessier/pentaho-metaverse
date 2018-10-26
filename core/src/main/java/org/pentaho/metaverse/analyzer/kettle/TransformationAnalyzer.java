@@ -22,6 +22,7 @@
 
 package org.pentaho.metaverse.analyzer.kettle;
 
+import org.pentaho.di.base.AbstractMeta;
 import org.pentaho.di.core.Const;
 import org.pentaho.di.core.exception.KettleException;
 import org.pentaho.di.core.parameters.UnknownParamException;
@@ -107,18 +108,28 @@ public class TransformationAnalyzer extends BaseDocumentAnalyzer {
       transMeta = (TransMeta) repoObject;
     }
 
-    Trans t = new Trans( transMeta );
-    t.setInternalKettleVariables( transMeta );
-
     IComponentDescriptor documentDescriptor = new MetaverseComponentDescriptor( document.getStringID(),
       DictionaryConst.NODE_TYPE_TRANS, new Namespace( descriptor.getLogicalId() ), descriptor.getContext() );
 
     // Create a metaverse node and start filling in details
-    IMetaverseNode node = metaverseObjectFactory.createNodeObject(
+    IMetaverseNode transNode = metaverseObjectFactory.createNodeObject(
       document.getNamespace(),
       transMeta.getName(),
       DictionaryConst.NODE_TYPE_TRANS );
-    node.setLogicalIdGenerator( DictionaryConst.LOGICAL_ID_GENERATOR_DOCUMENT );
+    transNode.setLogicalIdGenerator( DictionaryConst.LOGICAL_ID_GENERATOR_DOCUMENT );
+
+    return analyze( documentDescriptor, transMeta, transNode,
+      (String) document.getProperty( DictionaryConst.PROPERTY_PATH ) );
+  }
+
+  @Override
+  public synchronized IMetaverseNode analyze(
+    final IComponentDescriptor documentDescriptor, final AbstractMeta meta, final IMetaverseNode node,
+    final String documentPath ) throws MetaverseAnalyzerException {
+
+    final TransMeta transMeta = (TransMeta) meta;
+    Trans t = new Trans( transMeta );
+    t.setInternalKettleVariables( transMeta );
 
     // pull out the standard fields
     String description = transMeta.getDescription();
@@ -160,8 +171,7 @@ public class TransformationAnalyzer extends BaseDocumentAnalyzer {
     if ( status != null && !status.startsWith( "!" ) ) {
       node.setProperty( DictionaryConst.PROPERTY_STATUS, status );
     }
-
-    node.setProperty( DictionaryConst.PROPERTY_PATH, document.getProperty( DictionaryConst.PROPERTY_PATH ) );
+    node.setProperty( DictionaryConst.PROPERTY_PATH, documentPath );
 
     String[] parameters = transMeta.listParameters();
     if ( parameters != null ) {
@@ -203,6 +213,10 @@ public class TransformationAnalyzer extends BaseDocumentAnalyzer {
               // transformation execution and does not change while the transformation is being analyzed
               if ( stepAnalyzer instanceof IClonableStepAnalyzer ) {
                 stepAnalyzer = ( (IClonableStepAnalyzer) stepAnalyzer ).cloneAnalyzer();
+                // TODO: do this for jobs as well
+                ( (IClonableStepAnalyzer) stepAnalyzer ).setDocumentAnalyzer( this );
+                ( (IClonableStepAnalyzer) stepAnalyzer ).setDocumentDescriptor( documentDescriptor );
+                ( (IClonableStepAnalyzer) stepAnalyzer ).setDocumentPath( documentPath );
               } else {
                 log.debug( Messages.getString( "WARNING.CannotCloneAnalyzer" ), stepAnalyzer );
               }

@@ -32,6 +32,7 @@ import org.pentaho.di.core.extension.ExtensionPoint;
 import org.pentaho.di.core.extension.ExtensionPointHandler;
 import org.pentaho.di.core.logging.LogChannelInterface;
 import org.pentaho.di.core.parameters.UnknownParamException;
+import org.pentaho.di.job.Job;
 import org.pentaho.di.trans.Trans;
 import org.pentaho.di.trans.TransListener;
 import org.pentaho.di.trans.TransMeta;
@@ -348,15 +349,23 @@ public class TransformationRuntimeExtensionPoint extends BaseRuntimeExtensionPoi
         log.debug( Messages.getString( "ERROR.ErrorDuringAnalysisStackTrace" ), e );
       }
 
+      // TODO: do this for jobs as well
+      // Only create a lineage graph for this trans if it has no parent. Otherwise, the parent will incorporate the
+      // lineage information into its own graph
       try {
-        // Add the execution profile information to the lineage graph
-        addRuntimeLineageInfo( holder );
+        Job parentJob = trans.getParentJob();
+        Trans parentTrans = trans.getParentTrans();
 
-        if ( lineageWriter != null && !"none".equals( lineageWriter.getOutputStrategy() ) ) {
-          lineageWriter.outputLineageGraph( holder );
-          // lineage has been written - call the appropriate extension point
-          ExtensionPointHandler.callExtensionPoint(
-            trans.getLogChannel(), MetaverseExtensionPoint.TransLineageWriteEnd.id, trans );
+        if ( parentJob == null && parentTrans == null ) {
+          // Add the execution profile information to the lineage graph
+          addRuntimeLineageInfo( holder );
+
+          if ( lineageWriter != null && !"none".equals( lineageWriter.getOutputStrategy() ) ) {
+            lineageWriter.outputLineageGraph( holder );
+            // lineage has been written - call the appropriate extension point
+            ExtensionPointHandler.callExtensionPoint(
+              trans.getLogChannel(), MetaverseExtensionPoint.TransLineageWriteEnd.id, trans );
+          }
         }
       } catch ( IOException e ) {
         log.warn( Messages.getString( "ERROR.CouldNotWriteExecutionProfile", trans.getName(),

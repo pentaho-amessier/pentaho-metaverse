@@ -22,6 +22,9 @@
 
 package org.pentaho.metaverse.api;
 
+import org.pentaho.di.base.AbstractMeta;
+import org.pentaho.di.trans.TransMeta;
+
 public interface IClonableDocumentAnalyzer<S> extends IDocumentAnalyzer<S> {
 
   /**
@@ -30,4 +33,8 @@ public interface IClonableDocumentAnalyzer<S> extends IDocumentAnalyzer<S> {
    * @return a clone of this {@link IClonableDocumentAnalyzer}
    */
   IClonableDocumentAnalyzer cloneAnalyzer();
+
+  IMetaverseNode analyze(
+    final IComponentDescriptor documentDescriptor, final AbstractMeta meta, final IMetaverseNode node,
+    final String documentPath ) throws MetaverseAnalyzerException;
 }
