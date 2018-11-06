@@ -294,10 +294,12 @@ public class KettleAnalyzerUtil {
    * @param transMeta the step's parent {@link TransMeta}
    * @param meta      the step {@link ISubTransAwareMeta}
    * @param rootNode  the {@link IMetaverseNode}
+   * @return the {@link IMetaverseNode} representing the sub-transformation
    * @throws MetaverseAnalyzerException
    */
-  public static void analyze( final StepAnalyzer analyzer, final TransMeta transMeta, final ISubTransAwareMeta meta,
-                              final IMetaverseNode rootNode )
+  public static IMetaverseNode analyze( final StepAnalyzer analyzer, final TransMeta transMeta,
+                                        final ISubTransAwareMeta meta,
+                                        final IMetaverseNode rootNode )
     throws MetaverseAnalyzerException {
 
     String transformationPath = KettleAnalyzerUtil.normalizeFilePathSafely(
@@ -325,8 +327,7 @@ public class KettleAnalyzerUtil {
       analyzer.getDescriptor().getContext() );
 
     // analyze the sub-transformation
-    analyzer.getDocumentAnalyzer().analyze( subtransDocumentDescriptor, subTransMeta, subTransNode,
+    return analyzer.getDocumentAnalyzer().analyze( subtransDocumentDescriptor, subTransMeta, subTransNode,
       KettleAnalyzerUtil.getSubTransMetaPath( meta, subTransMeta ) );
   }
-
 }
