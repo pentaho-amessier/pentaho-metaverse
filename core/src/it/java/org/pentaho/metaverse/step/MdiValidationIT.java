@@ -25,19 +25,14 @@ package org.pentaho.metaverse.step;
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.collections.IteratorUtils;
 import org.apache.commons.lang.StringUtils;
-import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mockito;
-import org.pentaho.metaverse.BaseMetaverseValidationIT;
 import org.pentaho.metaverse.frames.FileNode;
 import org.pentaho.metaverse.frames.FramedMetaverseNode;
 import org.pentaho.metaverse.frames.StreamFieldNode;
 import org.pentaho.metaverse.frames.TransformationNode;
 import org.pentaho.metaverse.frames.TransformationStepNode;
 import org.pentaho.metaverse.impl.MetaverseConfig;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
@@ -51,21 +46,8 @@ import static org.junit.Assert.*;
 @RunWith( PowerMockRunner.class )
 @PrepareForTest( MetaverseConfig.class )
 // TODO: Ignored for now, remove the @Ignore annotation once https://jira.pentaho.com/browse/ENGOPS-4612 is resolved
-@Ignore
+//@Ignore
 public class MdiValidationIT extends StepAnalyzerValidationIT {
-
-  private static final String ROOT_FOLDER = "src/it/resources/repo/mdi-validation";
-  private static final String OUTPUT_FILE = "target/outputfiles/mdiValidationGraph.graphml";
-
-  @BeforeClass
-  public static void init() throws Exception {
-
-    PowerMockito.mockStatic( MetaverseConfig.class );
-    Mockito.when( MetaverseConfig.adjustExternalResourceFields() ).thenReturn( true );
-    Mockito.when( MetaverseConfig.deduplicateTransformationFields() ).thenReturn( true );
-
-    BaseMetaverseValidationIT.init( ROOT_FOLDER, OUTPUT_FILE );
-  }
 
   private void verifyMdiInputs( final TransformationStepNode mdiNode, final TransformationStepNode inputStepNode,
                                 final String subTransStepNodeName,
@@ -208,9 +190,26 @@ public class MdiValidationIT extends StepAnalyzerValidationIT {
   @Test
   public void testMdiInjectorStreamReadingAndStreamingSameStep() throws Exception {
 
-    final TransformationNode injectorTransNode = verifyTransformationNode( "injector_stream_same_as_mapping", false );
-    final TransformationNode templateSubTransNode = verifyTransformationNode(
-      "template_stream_same_as_mapping", true );
+    final String transNodeName = "injector_stream_same_as_mapping";
+    final String subTransNodeName = "template_stream_same_as_mapping";
+    initTest( transNodeName );
+
+    final TransformationNode injectorTransNode = verifyTransformationNode( transNodeName, false );
+    final TransformationNode templateSubTransNode = verifyTransformationNode( subTransNodeName, true );
+
+    /*
+
+    // smoke test - verify that the right number of nodes and edges exist in the graph and that the expected top
+    // level nodes of expected types exist
+    assertEquals( "Unexpected number of nodes", 43, getIterableSize( framedGraph.getVertices() ) );
+    assertEquals( "Unexpected number of edges", 123, getIterableSize( framedGraph.getEdges() ) );
+    verifyNodesTypes( ImmutableMap.of(
+      NODE_TYPE_TRANS, Arrays.asList( new String[] { transNodeName, "sub" } ),
+      NODE_TYPE_TRANS_FIELD, Arrays.asList( new String[] { RANDOM_VALUE, RANDOM_VALUE, RANDOM_VALUE,
+        RANDOM_VALUE, RANDOM_VALUE, VALUE, VALUE, VALUE, VALUE, VALUE, VALUE, CHECKSUM, CHECKSUM,
+        NEW_CHECKSUM, NEW_CHECKSUM, PARITY, PARITY, NEW_PARITY, NEW_PARITY } ) ) );
+
+     */
 
     // The injector should "contain" 4 step nodes and no virtual nodes
     final Map<String, FramedMetaverseNode> stepNodeMap = verifyTransformationSteps( injectorTransNode,
@@ -260,10 +259,12 @@ public class MdiValidationIT extends StepAnalyzerValidationIT {
   @Test
   public void testMdiInjectorStreamReadingAndStreamingDifferentStep() throws Exception {
 
-    final TransformationNode injectorTransNode =
-      verifyTransformationNode( "injector_stream_different_than_mapping", false );
-    final TransformationNode templateSubTransNode = verifyTransformationNode(
-      "template_stream_different_than_mapping", true );
+    final String transNodeName = "injector_stream_different_than_mapping";
+    final String subTransNodeName = "template_stream_different_than_mapping";
+    initTest( transNodeName );
+
+    final TransformationNode injectorTransNode = verifyTransformationNode( transNodeName, false );
+    final TransformationNode templateSubTransNode = verifyTransformationNode( subTransNodeName, true );
 
     // The injector should "contain" 4 step nodes and no virtual nodes
     final Map<String, FramedMetaverseNode> stepNodeMap = verifyTransformationSteps( injectorTransNode,
@@ -313,8 +314,12 @@ public class MdiValidationIT extends StepAnalyzerValidationIT {
   @Test
   public void testMdiInjectorNoStream() throws Exception {
 
-    final TransformationNode injectorTransNode = verifyTransformationNode( "injector_no_stream", false );
-    final TransformationNode templateSubTransNode = verifyTransformationNode( "template_no_stream", true );
+    final String transNodeName = "injector_no_stream";
+    final String subTransNodeName = "template_no_stream";
+    initTest( transNodeName );
+
+    final TransformationNode injectorTransNode = verifyTransformationNode( transNodeName, false );
+    final TransformationNode templateSubTransNode = verifyTransformationNode( subTransNodeName, true );
 
     // The injector should "contain" 4 step nodes and no virtual nodes
     final Map<String, FramedMetaverseNode> stepNodeMap = verifyTransformationSteps( injectorTransNode,
@@ -340,35 +345,15 @@ public class MdiValidationIT extends StepAnalyzerValidationIT {
       "OUTPUT_FIELDNAME", "Trim Type", "OUTPUT_TRIM", "Type", "", "Dummy", "" ) );
   }
 
-  //@Test
-  public void testMdiTemplateNoStream() throws Exception {
-    final TransformationNode templateTransNode = verifyTransformationNode( "template_no_stream", false );
-
-    // The template should "contain" 3 step nodes and no virtual nodes
-    final Map<String, FramedMetaverseNode> stepNodeMap = verifyTransformationSteps( templateTransNode,
-      new String[] { "My Generate Rows", "My Text file output", "My Text file output [2]" }, false );
-
-    final TransformationStepNode textOutputNode1 = (TransformationStepNode) stepNodeMap.get( "My Text file output" );
-    // verify that the output file name for the first file output node comes from the injector
-    final List<FileNode> writesToNodes1 = IteratorUtils.toList( textOutputNode1.getWritesToNodes().iterator() );
-    assertEquals( 1, writesToNodes1.size() );
-    assertTrue( writesToNodes1.get( 0 ).getPath().endsWith( "no_stream_tempalte.txt" ) );
-    // should have two output fields
-
-    final TransformationStepNode textOutputNode2 =
-      (TransformationStepNode) stepNodeMap.get( "My Text file output [2]" );
-    // verify that the output file name for the second file output node remains unchanged
-    final List<FileNode> writesToNodes2 = IteratorUtils.toList( textOutputNode1.getWritesToNodes().iterator() );
-    assertEquals( 1, writesToNodes2.size() );
-    assertTrue( writesToNodes2.get( 0 ).getPath().endsWith( "orig_no_stream_tempalte2.txt" ) );
-    // should have three output fields
-  }
-
   @Test
   public void testMdiInjectorNoStreamMap2Steps() throws Exception {
 
-    final TransformationNode injectorTransNode = verifyTransformationNode( "injector_no_stream_map_2_steps", false );
-    final TransformationNode templateSubTransNode = verifyTransformationNode( "template_no_stream_map_2_steps", true );
+    final String transNodeName = "injector_no_stream_map_2_steps";
+    final String subTransNodeName = "template_no_stream_map_2_steps";
+    initTest( transNodeName );
+
+    final TransformationNode injectorTransNode = verifyTransformationNode( transNodeName, false );
+    final TransformationNode templateSubTransNode = verifyTransformationNode( subTransNodeName, true );
 
     // The injector should "contain" 4 step nodes and no virtual nodes
     final Map<String, FramedMetaverseNode> stepNodeMap = verifyTransformationSteps( injectorTransNode,
