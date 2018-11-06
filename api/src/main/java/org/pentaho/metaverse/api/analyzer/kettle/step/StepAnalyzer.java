@@ -1048,18 +1048,4 @@ public abstract class StepAnalyzer<T extends BaseStepMeta> extends BaseKettleMet
     vertex.setProperty( propertyName, propertyValue );
     return true;
   }
-/*
-  protected BaseStepMeta getBaseStepMetaFromStepMeta( StepMeta stepMeta ) {
-
-    // Attempt to discover a BaseStepMeta from the given StepMeta
-    BaseStepMeta baseStepMeta = new BaseStepMeta();
-    baseStepMeta.setParentStepMeta( stepMeta );
-    if ( stepMeta != null ) {
-      StepMetaInterface smi = stepMeta.getStepMetaInterface();
-      if ( smi instanceof BaseStepMeta ) {
-        baseStepMeta = (BaseStepMeta) smi;
-      }
-    }
-    return baseStepMeta;
-  }*/
 }
