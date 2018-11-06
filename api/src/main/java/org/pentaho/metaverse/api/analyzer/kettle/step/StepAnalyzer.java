@@ -758,7 +758,7 @@ public abstract class StepAnalyzer<T extends BaseStepMeta> extends BaseKettleMet
    * @param nodeMap   a {@link Map} of nodes for lookup
    * @return a {@link IMetaverseNode} from the map (if present) or created a new one.
    */
-  protected IMetaverseNode getNode( final String name, final String type, final INamespace namespace,
+  public IMetaverseNode getNode( final String name, final String type, final INamespace namespace,
                                     final String nodeKey, final Map<String, IMetaverseNode> nodeMap ) {
     IMetaverseNode node = nodeMap == null ? null : nodeMap.get( nodeKey );
     if ( node == null ) {
@@ -812,9 +812,17 @@ public abstract class StepAnalyzer<T extends BaseStepMeta> extends BaseKettleMet
     this.documentAnalyzer = documentAnalyzer;
   }
 
+  public IClonableDocumentAnalyzer getDocumentAnalyzer() {
+    return this.documentAnalyzer;
+  }
+
   @Override
   public void setDocumentDescriptor( final IComponentDescriptor documentDescriptor ) {
     this.documentDescriptor = documentDescriptor;
+  }
+
+  public IComponentDescriptor getDocumentDescriptor() {
+    return this.documentDescriptor;
   }
 
   @Override

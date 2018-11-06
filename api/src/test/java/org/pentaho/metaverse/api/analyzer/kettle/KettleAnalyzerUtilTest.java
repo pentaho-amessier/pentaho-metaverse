@@ -24,13 +24,22 @@ package org.pentaho.metaverse.api.analyzer.kettle;
 
 import org.apache.commons.vfs2.FileObject;
 import org.junit.Test;
+import org.mockito.Mockito;
+import org.pentaho.di.base.AbstractMeta;
 import org.pentaho.di.core.vfs.KettleVFS;
+import org.pentaho.di.trans.TransMeta;
+import org.pentaho.dictionary.DictionaryConst;
+import org.pentaho.metaverse.api.IDocument;
+import org.pentaho.metaverse.api.IMetaverseBuilder;
+import org.pentaho.metaverse.api.INamespace;
+import org.pentaho.metaverse.api.MetaverseException;
+import org.pentaho.metaverse.api.Namespace;
+import org.pentaho.metaverse.api.model.BaseMetaverseBuilder;
 
 import java.io.File;
 import java.io.IOException;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.*;
 
 /**
  * User: RFellows Date: 8/14/14
@@ -61,5 +70,32 @@ public class KettleAnalyzerUtilTest {
     String result = KettleAnalyzerUtil.normalizeFilePath( input );
     assertEquals( expected, result );
 
+  }
+
+  @Test
+  public void tesBuildDocument() throws MetaverseException {
+    final IMetaverseBuilder builder = new BaseMetaverseBuilder( null );
+    final AbstractMeta transMeta = Mockito.mock( TransMeta.class );
+    final String transName = "MyTransMeta";
+    Mockito.doReturn( transName ).when( transMeta ).getName();
+    Mockito.doReturn( "ktr" ).when( transMeta ).getDefaultExtension();
+    final String id = "path.ktr";
+    final String namespaceId = "MyNamespace";
+    final INamespace namespace = new Namespace( namespaceId );
+
+    assertNull( KettleAnalyzerUtil.buildDocument( null, transMeta, id, namespace ) );
+
+    IDocument document = KettleAnalyzerUtil.buildDocument( builder, transMeta, id, namespace );
+    assertNotNull( document );
+    assertEquals( namespace, document.getNamespace() );
+    assertEquals( transMeta, document.getContent() );
+    assertEquals( id, document.getStringID() );
+    assertEquals( transName, document.getName() );
+    assertEquals( "ktr", document.getExtension() );
+    assertEquals( DictionaryConst.CONTEXT_RUNTIME, document.getContext().getContextName() );
+    assertEquals( document.getName(), document.getProperty( DictionaryConst.PROPERTY_NAME ) );
+    assertEquals( KettleAnalyzerUtil.normalizeFilePath( "path.ktr" ), document.getProperty( DictionaryConst
+      .PROPERTY_PATH ) );
+    assertEquals(namespaceId, document.getProperty( DictionaryConst.PROPERTY_NAMESPACE ) );
   }
 }

@@ -22,7 +22,6 @@
 
 package org.pentaho.metaverse;
 
-import com.tinkerpop.blueprints.Direction;
 import com.tinkerpop.blueprints.Graph;
 import com.tinkerpop.blueprints.Vertex;
 import com.tinkerpop.frames.FramedGraph;
@@ -54,7 +53,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -190,7 +188,8 @@ public abstract  class BaseMetaverseValidationIT {
     }
     // traverse each step node and verify namespace
     for ( final FramedMetaverseNode stepNode : stepNodes ) {
-      final String stepNamespace = stepNode.getProperty( PROPERTY_NAMESPACE ).toString().replaceAll( "\\\\/", "/" );
+      final String stepNamespace = stepNode.getProperty( PROPERTY_NAMESPACE ).toString().replaceAll( "\\\\/", "/" )
+        .replaceAll( "\\\\\\\\", "\\\\" );
       final String expectedStepNamespace = "{\"namespace\":{\"name\":\"" + REPO_ID + "\",\"type\":\"Locator\"},"
         + "\"path\":\"" + transPath + "\",\"type\":\"Transformation\"}";
       assertEquals( expectedStepNamespace, stepNamespace );
