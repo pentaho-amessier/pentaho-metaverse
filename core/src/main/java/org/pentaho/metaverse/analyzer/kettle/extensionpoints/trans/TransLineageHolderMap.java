@@ -87,12 +87,12 @@ public class TransLineageHolderMap {
     final LineageHolder holder = lineageHolderMap.remove( t );
 
     // remove references to any external resources associated with this transformation, we no longer need them
-    KettleAnalyzerUtil.removeResources( t.getTransMeta() );
+    KettleAnalyzerUtil.removeResources( t );
 
     for ( final Object subExecutable : holder.getSubTransAndJobs() ) {
       if ( subExecutable instanceof Trans ) {
         removeLineageHolderImpl( (Trans) subExecutable );
-      } else if ( subExecutable instanceof  Job ) {
+      } else if ( subExecutable instanceof Job ) {
         JobLineageHolderMap.getInstance().removeLineageHolderImpl( (Job) subExecutable );
       }
     }

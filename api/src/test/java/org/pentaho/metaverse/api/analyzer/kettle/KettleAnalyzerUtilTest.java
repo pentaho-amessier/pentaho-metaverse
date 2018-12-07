@@ -32,6 +32,7 @@ import org.pentaho.di.core.ObjectLocationSpecificationMethod;
 import org.pentaho.di.core.exception.KettleFileException;
 import org.pentaho.di.core.vfs.KettleVFS;
 import org.pentaho.di.trans.ISubTransAwareMeta;
+import org.pentaho.di.trans.Trans;
 import org.pentaho.di.trans.TransMeta;
 import org.pentaho.di.trans.step.StepMeta;
 import org.pentaho.di.trans.steps.file.BaseFileInputMeta;
@@ -210,6 +211,9 @@ public class KettleAnalyzerUtilTest {
   private BaseFileInputMeta meta2;
 
   @Mock
+  private Trans trans;
+
+  @Mock
   private TransMeta transMeta;
 
   private String path1 = "/path/to/file1";
@@ -225,16 +229,20 @@ public class KettleAnalyzerUtilTest {
 
   private void initMetas() {
 
+    when( trans.getTransMeta() ).thenReturn( transMeta );
+
     when( transMeta.getFilename() ).thenReturn( "my_file" );
 
     spyMeta = spy( new StepMeta( "test", meta ) );
     when( meta.getParentStepMeta() ).thenReturn( spyMeta );
+    when( meta.getName() ).thenReturn( "meta" );
     when( spyMeta.getParentTransMeta() ).thenReturn( transMeta );
     when( meta.writesToFile() ).thenReturn( true );
     when( meta.getFilePaths( false) ).thenReturn( filePaths );
 
     spyMeta2 = spy( new StepMeta( "test2", meta2 ) );
     when( meta2.getParentStepMeta() ).thenReturn( spyMeta2 );
+    when( meta2.getName() ).thenReturn( "meta2" );
     when( spyMeta2.getParentTransMeta() ).thenReturn( transMeta );
     when( meta2.writesToFile() ).thenReturn( true );
     when( meta2.getFilePaths( false) ).thenReturn( filePaths2 );
@@ -245,38 +253,31 @@ public class KettleAnalyzerUtilTest {
     initMetas();
     when( meta.isAcceptingFilenames() ).thenReturn( false );
 
-    Set<IExternalResourceInfo> resources = (Set<IExternalResourceInfo>) KettleAnalyzerUtil.getResourcesFromMeta( meta, filePaths );
+    Set<IExternalResourceInfo> resources = (Set<IExternalResourceInfo>) KettleAnalyzerUtil.getResourcesFromMeta(
+      trans, meta, filePaths );
     assertFalse( resources.isEmpty() );
     assertEquals( 3, resources.size() );
 
     Field resourceMapField = KettleAnalyzerUtil.class.getDeclaredField( "resourceMap" );
     resourceMapField.setAccessible( true );
 
-    Map<String, Collection<IExternalResourceInfo>> resourceMap = (Map) resourceMapField.get( null );
+    Map<Trans, Map<String, Collection<IExternalResourceInfo>>> resourceMap = (Map) resourceMapField.get( null );
     assertEquals( 1, resourceMap.size() );
-    assertEquals( 3, resourceMap.get( KettleAnalyzerUtil.getUniqueId( meta.getParentStepMeta() ) ).size() );
+    assertEquals( 1, resourceMap.get( trans ).size() );
+    assertEquals( 3, resourceMap.get( trans ).get( meta.getName() ).size() );
 
-    Set<IExternalResourceInfo> resources2 = (Set) KettleAnalyzerUtil.getResourcesFromMeta( meta2, filePaths2 );
+    Set<IExternalResourceInfo> resources2 = (Set) KettleAnalyzerUtil.getResourcesFromMeta(
+      trans, meta2, filePaths2 );
     assertFalse( resources2.isEmpty() );
     assertEquals( 2, resources2.size() );
     resourceMap = (Map) resourceMapField.get( null );
-    assertEquals( 2, resourceMap.size() );
-    assertEquals( 2, resourceMap.get( KettleAnalyzerUtil.getUniqueId( meta2.getParentStepMeta() ) ).size() );
+    assertEquals( 1, resourceMap.size() );
+    assertEquals( 2, resourceMap.get( trans ).size() );
+    assertEquals( 2, resourceMap.get( trans ).get( meta2.getName() ).size() );
 
     // verify that resource removal form map works
-    KettleAnalyzerUtil.removeResources( spyMeta );
-    resourceMap = (Map) resourceMapField.get( null );
-    assertEquals( 1, resourceMap.size() );
-    KettleAnalyzerUtil.removeResources( spyMeta2 );
+    KettleAnalyzerUtil.removeResources( trans );
     resourceMap = (Map) resourceMapField.get( null );
     assertEquals( 0, resourceMap.size() );
-  }
-
-  @Test
-  public void test_getUniqueId() {
-    initMetas();
-
-    assertEquals( System.getProperty( "user.dir" ) + File.separator + "my_file::test",
-      KettleAnalyzerUtil.getUniqueId( meta.getParentStepMeta() ) );
   }
 }

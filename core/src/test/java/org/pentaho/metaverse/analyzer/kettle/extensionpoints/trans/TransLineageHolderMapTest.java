@@ -188,8 +188,8 @@ public class TransLineageHolderMapTest {
     // test with parent transformation being set
     when( trans.getParentTrans() ).thenReturn( parentTrans );
 
-    KettleAnalyzerUtil.getResourcesFromMeta( meta, filePaths );
-    KettleAnalyzerUtil.getResourcesFromMeta( meta2, filePaths2 );
+    KettleAnalyzerUtil.getResourcesFromMeta( trans, meta, filePaths );
+    KettleAnalyzerUtil.getResourcesFromMeta( trans, meta2, filePaths2 );
 
     Field resourceMapField = KettleAnalyzerUtil.class.getDeclaredField( "resourceMap" );
     resourceMapField.setAccessible( true );
@@ -220,7 +220,6 @@ public class TransLineageHolderMapTest {
     assertEquals( 0, lineageHolderMap.size() );
   }
 
-  @Test
   public void testRemoveLineageHolderWithParentJob() throws Exception {
     initMetas();
     when( meta.isAcceptingFilenames() ).thenReturn( false );
@@ -231,8 +230,8 @@ public class TransLineageHolderMapTest {
     // test with parent transformation being set
     when( trans.getParentJob() ).thenReturn( parentJob );
 
-    KettleAnalyzerUtil.getResourcesFromMeta( meta, filePaths );
-    KettleAnalyzerUtil.getResourcesFromMeta( meta2, filePaths2 );
+    KettleAnalyzerUtil.getResourcesFromMeta( trans, meta, filePaths );
+    KettleAnalyzerUtil.getResourcesFromMeta( trans, meta2, filePaths2 );
 
     Field resourceMapField = KettleAnalyzerUtil.class.getDeclaredField( "resourceMap" );
     resourceMapField.setAccessible( true );

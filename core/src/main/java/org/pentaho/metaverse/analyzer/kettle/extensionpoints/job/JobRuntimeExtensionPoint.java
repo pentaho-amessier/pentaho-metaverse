@@ -120,10 +120,11 @@ public class JobRuntimeExtensionPoint extends BaseRuntimeExtensionPoint implemen
 
       IMetaverseBuilder builder = JobLineageHolderMap.getInstance().getMetaverseBuilder( job );
       final LineageHolder holder = JobLineageHolderMap.getInstance().getLineageHolder( job );
-      IDocumentAnalyzer documentAnalyzer = getDocumentAnalyzer();
+      IDocumentAnalyzer documentAnalyzer = getDocumentAnalyzer( job );
 
       if ( documentAnalyzer != null ) {
         documentAnalyzer.setMetaverseBuilder( builder );
+        documentAnalyzer.setExecutable( job );
 
         // Create a document for the Trans
         final String clientName = getExecutionEngineInfo().getName();

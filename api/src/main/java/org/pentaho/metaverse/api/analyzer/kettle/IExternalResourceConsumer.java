@@ -2,7 +2,7 @@
  *
  * Pentaho Data Integration
  *
- * Copyright (C) 2002-2017 by Hitachi Vantara : http://www.pentaho.com
+ * Copyright (C) 2002-2018 by Hitachi Vantara : http://www.pentaho.com
  *
  *******************************************************************************
  *
@@ -31,10 +31,10 @@ import java.util.Collection;
  * The IExternalResourceConsumer interface allows consumers of external resources to report the usages to those that
  * are interested.
  */
-public interface IExternalResourceConsumer<T> extends MetaClassProvider<T>, Cloneable {
+public interface IExternalResourceConsumer<M> extends MetaClassProvider<M>, Cloneable {
 
-  boolean isDataDriven( T consumer );
+  boolean isDataDriven( M meta );
 
-  Collection<IExternalResourceInfo> getResourcesFromMeta( T consumer );
-  Collection<IExternalResourceInfo> getResourcesFromMeta( T consumer, IAnalysisContext context );
+  Collection<IExternalResourceInfo> getResourcesFromMeta( M meta );
+  Collection<IExternalResourceInfo> getResourcesFromMeta( M meta, IAnalysisContext context );
 }

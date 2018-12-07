@@ -148,7 +148,7 @@ public abstract class BaseRuntimeExtensionPoint implements ExtensionPointInterfa
    *
    * @return IDocumentAnalyzer - The document analyzer for this extension point
    */
-  public IDocumentAnalyzer getDocumentAnalyzer() {
+  public IDocumentAnalyzer getDocumentAnalyzer( Object executable ) {
 
     // the analyzer assigned to this extension point is most likely a singleton created at startup time - in
     // order to be able to analyze multiple job concurrently, we need to clone the analyzer, such that each job

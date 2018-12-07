@@ -41,14 +41,13 @@ public class LineageHolder implements IRequiresMetaverseBuilder {
 
   private String id;
 
-  private List<Object> subTransAndJobs = new ArrayList();
-
   private IExecutionProfile executionProfile;
 
   private IMetaverseBuilder metaverseBuilder;
 
   private Future lineageTask;
 
+  private List<Object> subTransAndJobs= new ArrayList();
 
   public LineageHolder() {
   }
@@ -118,5 +117,4 @@ public class LineageHolder implements IRequiresMetaverseBuilder {
   public List<Object> getSubTransAndJobs() {
     return this.subTransAndJobs;
   }
-
 }

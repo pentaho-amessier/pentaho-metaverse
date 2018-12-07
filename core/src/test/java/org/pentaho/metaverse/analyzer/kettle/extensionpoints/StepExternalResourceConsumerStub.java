@@ -2,7 +2,7 @@
  *
  * Pentaho Data Integration
  *
- * Copyright (C) 2002-2017 by Hitachi Vantara : http://www.pentaho.com
+ * Copyright (C) 2002-2018 by Hitachi Vantara : http://www.pentaho.com
  *
  *******************************************************************************
  *
@@ -23,6 +23,7 @@
 package org.pentaho.metaverse.analyzer.kettle.extensionpoints;
 
 import org.pentaho.di.core.row.RowMetaInterface;
+import org.pentaho.di.trans.Trans;
 import org.pentaho.di.trans.step.BaseStep;
 import org.pentaho.di.trans.step.BaseStepMeta;
 import org.pentaho.metaverse.api.IAnalysisContext;
@@ -42,7 +43,18 @@ public class StepExternalResourceConsumerStub implements IStepExternalResourceCo
   }
 
   @Override
+  public Collection<IExternalResourceInfo> getResourcesFromMeta( Trans trans, BaseStepMeta meta ) {
+    return null;
+  }
+
+  @Override
   public Collection<IExternalResourceInfo> getResourcesFromMeta( Object meta ) {
+    return null;
+  }
+
+  @Override
+  public Collection<IExternalResourceInfo> getResourcesFromMeta(
+    Trans trans, BaseStepMeta consumer, IAnalysisContext context ) {
     return null;
   }
 
@@ -59,6 +71,13 @@ public class StepExternalResourceConsumerStub implements IStepExternalResourceCo
   @Override
   public Collection<IExternalResourceInfo> getResourcesFromRow(
     BaseStep consumer, RowMetaInterface rowMeta, Object[] row ) {
+
+    return null;
+  }
+
+  @Override
+  public Collection<IExternalResourceInfo> getResourcesFromRow(
+    Trans trans, BaseStep consumer, RowMetaInterface rowMeta, Object[] row ) {
 
     return null;
   }

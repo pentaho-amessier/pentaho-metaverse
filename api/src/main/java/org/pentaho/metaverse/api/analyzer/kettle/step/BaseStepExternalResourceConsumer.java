@@ -23,6 +23,7 @@
 package org.pentaho.metaverse.api.analyzer.kettle.step;
 
 import org.pentaho.di.core.row.RowMetaInterface;
+import org.pentaho.di.trans.Trans;
 import org.pentaho.di.trans.step.BaseStep;
 import org.pentaho.di.trans.step.BaseStepMeta;
 import org.pentaho.di.trans.steps.file.BaseFileInputStep;
@@ -58,28 +59,45 @@ public abstract class BaseStepExternalResourceConsumer<S extends BaseStep, M ext
 
   @Override
   public Collection<IExternalResourceInfo> getResourcesFromMeta( final M meta ) {
+    return getResourcesFromMeta( null, meta );
+  }
+
+  @Override
+  public Collection<IExternalResourceInfo> getResourcesFromMeta( final Trans trans, final M meta ) {
     return getResourcesFromMeta( meta, new AnalysisContext( DictionaryConst.CONTEXT_RUNTIME ) );
+  }
+
+
+  @Override
+  public Collection<IExternalResourceInfo> getResourcesFromMeta( final M meta, final IAnalysisContext context ) {
+    return getResourcesFromMeta( null, meta, context );
   }
 
   @Override
   public Collection<IExternalResourceInfo> getResourcesFromMeta(
-    final M meta, final IAnalysisContext context ) {
+    final Trans trans, final M meta, final IAnalysisContext context ) {
 
     if ( !( meta instanceof BaseFileMeta ) || !fetchResources( meta ) ) {
       return new HashSet();
     }
 
     return KettleAnalyzerUtil.getResourcesFromMeta(
-      meta, isDataDriven( meta ) ? new String[]{} : ( (BaseFileMeta) meta ).getFilePaths( false ) );
+      trans, meta, isDataDriven( meta ) ? new String[]{} : ( (BaseFileMeta) meta ).getFilePaths( false ) );
   }
 
   @Override
   public Collection<IExternalResourceInfo> getResourcesFromRow(
     final S step, final RowMetaInterface rowMeta, final Object[] row ) {
+    return getResourcesFromRow( null, step, rowMeta, row );
+  }
+
+  @Override
+  public Collection<IExternalResourceInfo> getResourcesFromRow(
+    final Trans trans, final S step, final RowMetaInterface rowMeta, final Object[] row ) {
 
     if ( !fetchResources( null ) || !( step instanceof BaseFileInputStep ) ) {
       return new HashSet();
     }
-    return KettleAnalyzerUtil.getResourcesFromRow( (BaseFileInputStep) step, rowMeta, row );
+    return KettleAnalyzerUtil.getResourcesFromRow( trans, (BaseFileInputStep) step, rowMeta, row );
   }
 }

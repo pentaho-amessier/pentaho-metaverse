@@ -23,8 +23,10 @@
 package org.pentaho.metaverse.api.analyzer.kettle.step;
 
 import org.pentaho.di.core.row.RowMetaInterface;
+import org.pentaho.di.trans.Trans;
 import org.pentaho.di.trans.step.BaseStep;
 import org.pentaho.di.trans.step.BaseStepMeta;
+import org.pentaho.metaverse.api.IAnalysisContext;
 import org.pentaho.metaverse.api.analyzer.kettle.IExternalResourceConsumer;
 import org.pentaho.metaverse.api.model.IExternalResourceInfo;
 
@@ -39,5 +41,10 @@ import java.util.Collection;
 public interface IStepExternalResourceConsumer<S extends BaseStep, M extends BaseStepMeta>
   extends IExternalResourceConsumer<M> {
 
-  Collection<IExternalResourceInfo> getResourcesFromRow( S consumer, RowMetaInterface rowMeta, Object[] row );
+  Collection<IExternalResourceInfo> getResourcesFromRow( S step, RowMetaInterface rowMeta, Object[] row );
+  Collection<IExternalResourceInfo> getResourcesFromRow( Trans trans, S step, RowMetaInterface rowMeta, Object[] row );
+
+  Collection<IExternalResourceInfo> getResourcesFromMeta( Trans trans, M meta );
+  Collection<IExternalResourceInfo> getResourcesFromMeta( Trans trans, M meta, IAnalysisContext context );
+
 }

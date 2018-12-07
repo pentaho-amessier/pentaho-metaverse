@@ -131,10 +131,11 @@ public class TransformationRuntimeExtensionPoint extends BaseRuntimeExtensionPoi
 
     IMetaverseBuilder builder = TransLineageHolderMap.getInstance().getMetaverseBuilder( trans );
     final LineageHolder holder = TransLineageHolderMap.getInstance().getLineageHolder( trans );
-    IDocumentAnalyzer documentAnalyzer = getDocumentAnalyzer();
+    IDocumentAnalyzer documentAnalyzer = getDocumentAnalyzer( trans );
 
     if ( documentAnalyzer != null ) {
       documentAnalyzer.setMetaverseBuilder( builder );
+      documentAnalyzer.setExecutable( trans );
 
       // Create a document for the Trans
       final String clientName = getExecutionEngineInfo().getName();

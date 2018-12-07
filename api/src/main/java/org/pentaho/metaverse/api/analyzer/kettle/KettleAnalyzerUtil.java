@@ -37,9 +37,9 @@ import org.pentaho.di.job.JobMeta;
 import org.pentaho.di.repository.Repository;
 import org.pentaho.di.repository.RepositoryDirectoryInterface;
 import org.pentaho.di.trans.ISubTransAwareMeta;
+import org.pentaho.di.trans.Trans;
 import org.pentaho.di.trans.TransMeta;
 import org.pentaho.di.trans.step.BaseStepMeta;
-import org.pentaho.di.trans.step.StepMeta;
 import org.pentaho.di.trans.steps.file.BaseFileInputMeta;
 import org.pentaho.di.trans.steps.file.BaseFileInputStep;
 import org.pentaho.dictionary.DictionaryConst;
@@ -65,15 +65,15 @@ import java.io.FileNotFoundException;
 import java.net.URLConnection;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class KettleAnalyzerUtil {
 
   private static final Logger log = LoggerFactory.getLogger( KettleAnalyzerUtil.class );
 
-  private static final Map<String, Collection<IExternalResourceInfo>> resourceMap =
-    Collections.synchronizedMap( new MapMaker().weakValues().makeMap() );
+  private static final Map<Trans, Map<String, Collection<IExternalResourceInfo>>> resourceMap =
+    Collections.synchronizedMap( new MapMaker().weakKeys().makeMap() );
 
   /**
    * Utility method for normalizing file paths used in Metaverse Id generation. It will convert a valid path into a
@@ -111,39 +111,25 @@ public class KettleAnalyzerUtil {
     return filePath;
   }
 
-  public static void removeResources( final TransMeta transMeta ) {
-    final List<StepMeta> steps = transMeta.getSteps();
-    for ( final StepMeta step : steps ) {
-      KettleAnalyzerUtil.removeResources( step );
-    }
-  }
-
-  protected static Collection<IExternalResourceInfo> removeResources( final StepMeta meta ) {
+  public static Map<String, Collection<IExternalResourceInfo> > removeResources( final Trans trans ) {
     if ( resourceMap != null ) {
-      return resourceMap.remove( getUniqueId( meta ) );
+      return resourceMap.remove( trans );
     }
     return null;
   }
 
-  protected static String getUniqueId( final StepMeta meta ) {
-
-    final TransMeta transMeta = meta.getParentTransMeta();
-    if ( transMeta.getRepository() == null ) {
-      return normalizeFilePathSafely( transMeta.getFilename() ) + "::"  + meta.getName();
-    } else {
-      return meta.getParentTransMeta().getPathAndName() + "." + meta.getParentTransMeta().getDefaultExtension()
-        + "::"  + meta.getName();
-    }
-  }
-
   public static Collection<IExternalResourceInfo> getResourcesFromMeta(
-    final BaseStepMeta meta, final String[] filePaths ) {
+    final Trans trans, final BaseStepMeta meta, final String[] filePaths ) {
 
-    final String uniqueMetaId = getUniqueId( meta.getParentStepMeta() );
-    Collection<IExternalResourceInfo> resources = resourceMap.get( uniqueMetaId );
+    Map<String, Collection<IExternalResourceInfo> > transResourceMap = resourceMap.get( trans );
+    if ( transResourceMap == null ) {
+      transResourceMap = new ConcurrentHashMap();
+      resourceMap.put( trans, transResourceMap );
+    }
+    Collection<IExternalResourceInfo> resources = transResourceMap.get( meta.getName() );
     if ( resources == null ) {
       resources = new ConcurrentHashSet();
-      resourceMap.put( uniqueMetaId, resources );
+      transResourceMap.put( meta.getName(), resources );
     }
 
     if ( meta != null && meta.getParentStepMeta() != null && filePaths != null && filePaths.length > 0 ) {
@@ -168,7 +154,7 @@ public class KettleAnalyzerUtil {
   }
 
   public static Collection<IExternalResourceInfo> getResourcesFromRow(
-    BaseFileInputStep step, RowMetaInterface rowMeta, Object[] row ) {
+    final Trans trans, final BaseFileInputStep step, final RowMetaInterface rowMeta, final Object[] row ) {
 
     // For some reason the step doesn't return the StepMetaInterface directly, so go around it
     BaseFileInputMeta meta = (BaseFileInputMeta) step.getStepMetaInterface();
@@ -176,11 +162,15 @@ public class KettleAnalyzerUtil {
       meta = (BaseFileInputMeta) step.getStepMeta().getStepMetaInterface();
     }
 
-    final String uniqueMetaId = getUniqueId( meta.getParentStepMeta() );
-    Collection<IExternalResourceInfo> resources = resourceMap.get( uniqueMetaId );
+    Map<String, Collection<IExternalResourceInfo> > transResourceMap = resourceMap.get( trans );
+    if ( transResourceMap == null ) {
+      transResourceMap = new ConcurrentHashMap();
+      resourceMap.put( trans, transResourceMap );
+    }
+    Collection<IExternalResourceInfo> resources = transResourceMap.get( meta.getName() );
     if ( resources == null ) {
       resources = new ConcurrentHashSet();
-      resourceMap.put( uniqueMetaId, resources );
+      transResourceMap.put( meta.getName(), resources );
     }
 
     try {

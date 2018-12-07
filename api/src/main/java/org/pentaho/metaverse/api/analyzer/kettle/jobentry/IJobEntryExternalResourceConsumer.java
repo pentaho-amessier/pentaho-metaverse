@@ -22,9 +22,17 @@
 
 package org.pentaho.metaverse.api.analyzer.kettle.jobentry;
 
+import org.pentaho.di.job.Job;
 import org.pentaho.di.job.entry.JobEntryBase;
+import org.pentaho.metaverse.api.IAnalysisContext;
 import org.pentaho.metaverse.api.analyzer.kettle.IExternalResourceConsumer;
+import org.pentaho.metaverse.api.model.IExternalResourceInfo;
+
+import java.util.Collection;
 
 public interface IJobEntryExternalResourceConsumer<T extends JobEntryBase>
   extends IExternalResourceConsumer<T> {
+
+  Collection<IExternalResourceInfo> getResourcesFromMeta( Job job, T consumer );
+  Collection<IExternalResourceInfo> getResourcesFromMeta( Job job, T consumer, IAnalysisContext context );
 }

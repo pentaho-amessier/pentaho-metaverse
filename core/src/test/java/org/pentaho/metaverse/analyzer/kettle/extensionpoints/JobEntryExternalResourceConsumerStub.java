@@ -2,7 +2,7 @@
  *
  * Pentaho Data Integration
  *
- * Copyright (C) 2002-2017 by Hitachi Vantara : http://www.pentaho.com
+ * Copyright (C) 2002-2018 by Hitachi Vantara : http://www.pentaho.com
  *
  *******************************************************************************
  *
@@ -22,6 +22,7 @@
 
 package org.pentaho.metaverse.analyzer.kettle.extensionpoints;
 
+import org.pentaho.di.job.Job;
 import org.pentaho.di.job.entry.JobEntryBase;
 import org.pentaho.metaverse.api.IAnalysisContext;
 import org.pentaho.metaverse.api.analyzer.kettle.jobentry.IJobEntryExternalResourceConsumer;
@@ -40,7 +41,18 @@ public class JobEntryExternalResourceConsumerStub implements IJobEntryExternalRe
   }
 
   @Override
+  public Collection<IExternalResourceInfo> getResourcesFromMeta( Job job, JobEntryBase meta ) {
+    return null;
+  }
+
+  @Override
   public Collection<IExternalResourceInfo> getResourcesFromMeta( Object meta ) {
+    return null;
+  }
+
+  @Override
+  public Collection<IExternalResourceInfo> getResourcesFromMeta(
+    Job job, JobEntryBase meta, IAnalysisContext context ) {
     return null;
   }
 

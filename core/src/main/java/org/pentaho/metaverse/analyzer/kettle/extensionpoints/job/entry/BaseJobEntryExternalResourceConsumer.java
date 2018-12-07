@@ -2,7 +2,7 @@
  *
  * Pentaho Data Integration
  *
- * Copyright (C) 2002-2017 by Hitachi Vantara : http://www.pentaho.com
+ * Copyright (C) 2002-2018 by Hitachi Vantara : http://www.pentaho.com
  *
  *******************************************************************************
  *
@@ -22,6 +22,7 @@
 
 package org.pentaho.metaverse.analyzer.kettle.extensionpoints.job.entry;
 
+import org.pentaho.di.job.Job;
 import org.pentaho.di.job.entry.JobEntryBase;
 import org.pentaho.dictionary.DictionaryConst;
 import org.pentaho.metaverse.api.AnalysisContext;
@@ -34,7 +35,7 @@ import java.util.Collections;
 
 /**
  * This class is a do-nothing reference implementation for StepExternalConsumer plugins. Subclasses should override
- * the various methods with business logic that can handle the external resources used by the given step.
+ * the various methods with business logic that can handle the external resources used by the given job entry.
  */
 public abstract class BaseJobEntryExternalResourceConsumer<T extends JobEntryBase>
   implements IJobEntryExternalResourceConsumer<T> {
@@ -47,6 +48,16 @@ public abstract class BaseJobEntryExternalResourceConsumer<T extends JobEntryBas
   @Override
   public Collection<IExternalResourceInfo> getResourcesFromMeta( T meta ) {
     return getResourcesFromMeta( meta, new AnalysisContext( DictionaryConst.CONTEXT_RUNTIME ) );
+  }
+
+  @Override
+  public Collection<IExternalResourceInfo> getResourcesFromMeta( Job job, T meta ) {
+    return getResourcesFromMeta( job, meta, new AnalysisContext( DictionaryConst.CONTEXT_RUNTIME ) );
+  }
+
+  @Override
+  public Collection<IExternalResourceInfo> getResourcesFromMeta( Job job, T consumer, IAnalysisContext context ) {
+    return Collections.emptyList();
   }
 
   @Override

@@ -37,4 +37,18 @@ public interface IDocumentAnalyzer<S> extends IAnalyzer<S, IDocument> {
    */
   Set<String> getSupportedTypes();
 
+  /**
+   * Sets the {@link org.pentaho.di.job.Job} or {@link org.pentaho.di.trans.Trans} object associated within this
+   * analyzer.
+   * @param executable {@link org.pentaho.di.job.Job} or {@link org.pentaho.di.trans.Trans}
+   */
+  void setExecutable( final Object executable );
+
+  /**
+   * Returns the {@link org.pentaho.di.job.Job} or {@link org.pentaho.di.trans.Trans} object associated within this
+   * analyzer.
+   * @return the {@link org.pentaho.di.job.Job} or {@link org.pentaho.di.trans.Trans} object associated within this
+   * analyzer.
+   */
+  Object getExecutable();
 }

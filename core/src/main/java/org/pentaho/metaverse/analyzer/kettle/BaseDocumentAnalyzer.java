@@ -22,6 +22,8 @@
 
 package org.pentaho.metaverse.analyzer.kettle;
 
+import org.pentaho.di.job.Job;
+import org.pentaho.di.trans.Trans;
 import org.pentaho.dictionary.DictionaryConst;
 import org.pentaho.metaverse.api.IClonableDocumentAnalyzer;
 import org.pentaho.metaverse.api.IComponentDescriptor;
@@ -36,6 +38,8 @@ import org.pentaho.metaverse.messages.Messages;
  */
 public abstract class BaseDocumentAnalyzer extends BaseKettleMetaverseComponent
   implements IClonableDocumentAnalyzer<IMetaverseNode> {
+
+  private Object executable;
 
   /**
    * This method handles null checks for state validation
@@ -115,4 +119,17 @@ public abstract class BaseDocumentAnalyzer extends BaseKettleMetaverseComponent
     return true;
   }
 
+  @Override
+  public void setExecutable( final Object executable ) {
+    if ( executable instanceof Trans || executable instanceof Job ) {
+      this.executable = executable;
+    } else {
+      throw new IllegalArgumentException( Messages.getString( "ERROR.NotATransOrJob" ) );
+    }
+  }
+
+  @Override
+  public Object getExecutable() {
+    return this.executable;
+  }
 }

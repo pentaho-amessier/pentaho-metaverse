@@ -205,6 +205,7 @@ public class MetaverseUtil {
     return resultOps;
   }
 
+
   public static Runnable getAnalyzerRunner( final IDocumentAnalyzer analyzer, final IDocument document ) {
     return new Runnable() {
       @Override

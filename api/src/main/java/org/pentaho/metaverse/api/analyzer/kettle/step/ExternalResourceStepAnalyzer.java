@@ -26,6 +26,7 @@ import org.apache.commons.collections.MapUtils;
 import org.pentaho.di.core.exception.KettleValueException;
 import org.pentaho.di.core.row.RowMetaInterface;
 import org.pentaho.di.core.row.ValueMetaInterface;
+import org.pentaho.di.trans.Trans;
 import org.pentaho.di.trans.step.BaseStepMeta;
 import org.pentaho.di.trans.steps.file.BaseFileField;
 import org.pentaho.di.trans.steps.file.BaseFileInputMeta;
@@ -62,7 +63,9 @@ public abstract class ExternalResourceStepAnalyzer<T extends BaseStepMeta> exten
       // Note that we should be fetching ALL resources here, from meta and from row, not just from meta - however,
       // due to constraints imposed by the current API, we are calling the getResourcesFromMeta, which has been
       // implemented to return ALL resources, from meta and those cached from row
-      Collection<IExternalResourceInfo> resources = getExternalResourceConsumer().getResourcesFromMeta( meta, context );
+      final Trans trans = getDocumentAnalyzer() == null || !( getDocumentAnalyzer().getExecutable() instanceof Trans )
+        ? null : (Trans) getDocumentAnalyzer().getExecutable();
+      Collection<IExternalResourceInfo> resources = getExternalResourceConsumer().getResourcesFromMeta( trans, meta );
       for ( IExternalResourceInfo resource : resources ) {
         try {
           if ( isInput() ) {
