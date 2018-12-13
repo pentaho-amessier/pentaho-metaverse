@@ -181,7 +181,6 @@ public class JobRuntimeExtensionPointTest {
     JobLineageHolderMap originalHolderMap = mockBuilder();
 
     JobRuntimeExtensionPoint ext = spy( jobExtensionPoint );
-    when( ext.allowedAsync() ).thenReturn( false );
 
     // mock the LineageHolder, since we remove it now at the end of jobFinished
     final LineageHolder holder = Mockito.mock( LineageHolder.class );
@@ -189,7 +188,6 @@ public class JobRuntimeExtensionPointTest {
     PowerMockito.mockStatic( ExtensionPointHandler.class );
     ext.jobFinished( job );
     verify( ext ).createLineGraph( job );
-    verify( ext, never() ).createLineGraphAsync( job );
     verify( lineageWriter, times( 1 ) ).outputLineageGraph( holder );
 
     PowerMockito.verifyStatic();
@@ -221,10 +219,7 @@ public class JobRuntimeExtensionPointTest {
     JobLineageHolderMap originalHolderMap = mockBuilder();
 
     JobRuntimeExtensionPoint ext = spy( jobExtensionPoint );
-    when( ext.allowedAsync() ).thenReturn( true );
     ext.jobFinished( job );
-    verify( ext ).createLineGraphAsync( job );
-
     // Restore original JobLineageHolderMap for use by others
     JobLineageHolderMap.setInstance( originalHolderMap );
   }

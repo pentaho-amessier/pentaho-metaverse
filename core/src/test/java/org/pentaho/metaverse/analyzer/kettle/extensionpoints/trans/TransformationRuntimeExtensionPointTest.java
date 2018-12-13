@@ -170,7 +170,6 @@ public class TransformationRuntimeExtensionPointTest {
   public void testTransFinishedNotAsync() throws Exception {
     mockBuilder();
     TransformationRuntimeExtensionPoint ext = spy( transExtensionPoint );
-    when( ext.allowedAsync() ).thenReturn( false );
 
     // mock the LineageHolder, since we remove it now at the end of jobFinished
     final LineageHolder holder = Mockito.mock( LineageHolder.class );
@@ -180,7 +179,6 @@ public class TransformationRuntimeExtensionPointTest {
     ext.transFinished( trans );
 
     verify( ext ).createLineGraph( trans );
-    verify( ext, never() ).createLineGraphAsync( trans );
     verify( lineageWriter, times( 1 ) ).outputLineageGraph( holder );
 
     PowerMockito.verifyStatic();
@@ -204,16 +202,6 @@ public class TransformationRuntimeExtensionPointTest {
     verify( lineageWriter, never() )
       .outputLineageGraph( TransLineageHolderMap.getInstance().getLineageHolder( trans ) );
   }
-
-  @Test
-  public void testTransFinishedAsync() throws Exception {
-    TransformationRuntimeExtensionPoint ext = spy( transExtensionPoint );
-    when( ext.allowedAsync() ).thenReturn( true );
-    ext.transFinished( trans );
-
-    verify( ext ).createLineGraphAsync( trans );
-  }
-
   @Test
   public void testTransActive() {
     // Test transActive for coverage, it should do nothing

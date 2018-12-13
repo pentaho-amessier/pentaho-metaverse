@@ -168,6 +168,7 @@ public class JobExecutorStepAnalyzer extends StepAnalyzer<JobExecutorMeta> {
     connectToSubJobOutputFields( meta, subJobMeta, jobNode, descriptor );
 
     node.setProperty( JOB_TO_EXECUTE, jobPath );
+    node.setProperty( DictionaryConst.PROPERTY_PATH, jobPath );
 
     if ( StringUtils.isNotEmpty( meta.getExecutionResultTargetStep() ) ) {
       node.setProperty( EXECUTION_RESULTS_TARGET, meta.getExecutionResultTargetStep() );

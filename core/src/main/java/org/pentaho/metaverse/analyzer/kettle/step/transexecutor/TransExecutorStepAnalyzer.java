@@ -105,6 +105,7 @@ public class TransExecutorStepAnalyzer extends StepAnalyzer<TransExecutorMeta> {
     connectToSubTransOutputFields( meta, subTransMeta, subTransNode, descriptor );
 
     node.setProperty( TRANSFORMATION_TO_EXECUTE, transformationPath );
+    node.setProperty( DictionaryConst.PROPERTY_PATH, transformationPath );
 
     if ( StringUtils.isNotEmpty( meta.getExecutionResultTargetStep() ) ) {
       node.setProperty( EXECUTION_RESULTS_TARGET, meta.getExecutionResultTargetStep() );

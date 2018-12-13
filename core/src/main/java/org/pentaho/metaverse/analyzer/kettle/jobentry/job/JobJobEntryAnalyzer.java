@@ -126,6 +126,7 @@ public class JobJobEntryAnalyzer extends JobEntryAnalyzer<JobEntryJob> {
     jobNode.setProperty( DictionaryConst.PROPERTY_PATH, jobPath );
     jobNode.setLogicalIdGenerator( DictionaryConst.LOGICAL_ID_GENERATOR_DOCUMENT );
 
+    rootNode.setProperty( DictionaryConst.PROPERTY_PATH, jobPath );
     metaverseBuilder.addLink( rootNode, DictionaryConst.LINK_EXECUTES, jobNode );
 
     final IDocument subTransDocument = KettleAnalyzerUtil.buildDocument( getMetaverseBuilder(), subJobMeta,

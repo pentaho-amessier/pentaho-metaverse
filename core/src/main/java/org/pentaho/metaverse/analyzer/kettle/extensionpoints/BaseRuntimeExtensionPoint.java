@@ -22,10 +22,10 @@
 
 package org.pentaho.metaverse.analyzer.kettle.extensionpoints;
 
-import org.apache.commons.lang.ObjectUtils;
-import org.pentaho.di.core.KettleClientEnvironment;
 import org.pentaho.di.core.extension.ExtensionPointInterface;
 import org.pentaho.di.core.logging.LogChannelInterface;
+import org.pentaho.di.job.Job;
+import org.pentaho.di.trans.Trans;
 import org.pentaho.di.version.BuildVersion;
 import org.pentaho.dictionary.DictionaryConst;
 import org.pentaho.metaverse.api.IClonableDocumentAnalyzer;
@@ -123,18 +123,6 @@ public abstract class BaseRuntimeExtensionPoint implements ExtensionPointInterfa
   }
 
   /**
-   * When executing from Kitchen or Pan there might not enough time to finish all async tasks
-   * from job and trans listeners. To prevent jvm to exit use this flag to decide whether to run
-   * them async or not.
-   */
-  public boolean allowedAsync() {
-    KettleClientEnvironment.ClientType client = KettleClientEnvironment.getInstance().getClient();
-    return client != null && !(
-          ObjectUtils.equals( client, KettleClientEnvironment.ClientType.KITCHEN )
-          || ObjectUtils.equals( client, KettleClientEnvironment.ClientType.PAN ) );
-  }
-
-  /**
    * Sets the document analyzer for this extension point
    *
    * @param analyzer The document analyzer for this extension point
@@ -180,4 +168,20 @@ public abstract class BaseRuntimeExtensionPoint implements ExtensionPointInterfa
   }
 
   protected abstract LineageHolder getLineageHolder( final Object o );
+
+  protected boolean shouldCreateGraph( final Job job ) {
+    final Job parentJob = job.getParentJob();
+    final Trans parentTrans = job.getParentTrans();
+    // Create a lineage graph for this job only if it has no parent. Otherwise, the parent will incorporate
+    // the lineage information into its own graph
+    return parentJob == null && parentTrans == null;
+  }
+
+  protected boolean shouldCreateGraph( final Trans trans ) {
+    final Job parentJob = trans.getParentJob();
+    final Trans parentTrans = trans.getParentTrans();
+    // Create a lineage graph for this transformation only if it has no parent. Otherwise, the parent will incorporate
+    // the lineage information into its own graph
+    return parentJob == null && parentTrans == null;
+  }
 }

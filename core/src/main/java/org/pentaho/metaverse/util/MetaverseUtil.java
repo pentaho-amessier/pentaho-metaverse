@@ -209,20 +209,25 @@ public class MetaverseUtil {
     return new Runnable() {
       @Override
       public void run() {
-        try {
-          MetaverseComponentDescriptor docDescriptor = new MetaverseComponentDescriptor(
-            document.getName(),
-            DictionaryConst.NODE_TYPE_TRANS,
-            document.getNamespace() );
-          if ( document.getContext() != null ) {
-            docDescriptor.setContext( document.getContext() );
-          }
-          analyzer.analyze( docDescriptor, document );
-        } catch ( MetaverseAnalyzerException mae ) {
-          throw new RuntimeException( Messages.getString( "ERROR.AnalyzingDocument", document.getNamespaceId() ), mae );
-        }
+        runAnalyzer( analyzer, document );
       }
     };
+  }
+
+
+  public static void runAnalyzer( final IDocumentAnalyzer analyzer, final IDocument document ) {
+    try {
+      MetaverseComponentDescriptor docDescriptor = new MetaverseComponentDescriptor(
+        document.getName(),
+        DictionaryConst.NODE_TYPE_TRANS,
+        document.getNamespace() );
+      if ( document.getContext() != null ) {
+        docDescriptor.setContext( document.getContext() );
+      }
+      analyzer.analyze( docDescriptor, document );
+    } catch ( MetaverseAnalyzerException mae ) {
+      throw new RuntimeException( Messages.getString( "ERROR.AnalyzingDocument", document.getNamespaceId() ), mae );
+    }
   }
 
   /**

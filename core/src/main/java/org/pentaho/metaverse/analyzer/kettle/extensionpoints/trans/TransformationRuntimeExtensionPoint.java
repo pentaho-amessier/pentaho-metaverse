@@ -32,7 +32,6 @@ import org.pentaho.di.core.extension.ExtensionPoint;
 import org.pentaho.di.core.extension.ExtensionPointHandler;
 import org.pentaho.di.core.logging.LogChannelInterface;
 import org.pentaho.di.core.parameters.UnknownParamException;
-import org.pentaho.di.job.Job;
 import org.pentaho.di.trans.Trans;
 import org.pentaho.di.trans.TransListener;
 import org.pentaho.di.trans.TransMeta;
@@ -50,7 +49,6 @@ import org.pentaho.metaverse.api.model.IExecutionProfile;
 import org.pentaho.metaverse.api.model.IParamInfo;
 import org.pentaho.metaverse.api.model.LineageHolder;
 import org.pentaho.metaverse.api.model.kettle.MetaverseExtensionPoint;
-import org.pentaho.metaverse.impl.MetaverseCompletionService;
 import org.pentaho.metaverse.impl.model.ExecutionProfile;
 import org.pentaho.metaverse.impl.model.ParamInfo;
 import org.pentaho.metaverse.messages.Messages;
@@ -62,8 +60,6 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 
 /**
  * An extension point to gather runtime data for an execution of a transformation into an ExecutionProfile object
@@ -146,11 +142,7 @@ public class TransformationRuntimeExtensionPoint extends BaseRuntimeExtensionPoi
 
       final String id = TransExtensionPointUtil.getFilename( trans.getTransMeta() );
       final IDocument metaverseDocument = KettleAnalyzerUtil.buildDocument( builder, trans.getTransMeta(), id, namespace );
-      final Runnable analyzerRunner = MetaverseUtil.getAnalyzerRunner( documentAnalyzer, metaverseDocument );
-
-      // set the lineage task, so that we can wait for it to finish before proceeding to write out the graph
-      holder.setLineageTask( MetaverseCompletionService.getInstance().submit( analyzerRunner,
-        metaverseDocument.getStringID() ) );
+      MetaverseUtil.runAnalyzer( documentAnalyzer, metaverseDocument );
     }
 
     // Save the lineage objects for later
@@ -265,25 +257,7 @@ public class TransformationRuntimeExtensionPoint extends BaseRuntimeExtensionPoi
 
     log.info( Messages.getString( "INFO.TransformationFinished", trans.getName() ) );
     runAnalyzers( trans );
-
-    if ( allowedAsync() ) {
-      createLineGraphAsync( trans );
-    } else {
-      createLineGraph( trans );
-    }
-  }
-
-  protected void createLineGraphAsync( Trans trans ) {
-    // Need to spin this processing off into its own thread, so we don't hold up normal PDI processing
-    Thread lineageWorker = new Thread( new Runnable() {
-
-      @Override
-      public void run() {
-        createLineGraph( trans );
-      }
-    } );
-
-    lineageWorker.start();
+    createLineGraph( trans );
   }
 
   protected void createLineGraph( final Trans trans ) {
@@ -291,18 +265,6 @@ public class TransformationRuntimeExtensionPoint extends BaseRuntimeExtensionPoi
     try {
       // Get the current execution profile for this transformation
       LineageHolder holder = TransLineageHolderMap.getInstance().getLineageHolder( trans );
-      Future lineageTask = holder.getLineageTask();
-      if ( lineageTask != null ) {
-        try {
-          lineageTask.get();
-        } catch ( InterruptedException e ) {
-          // Do nothing
-        } catch ( ExecutionException e ) {
-          log.warn( Messages.getString( "ERROR.CouldNotWriteLineageGraph", trans.getName(),
-            Const.NVL( e.getLocalizedMessage(), "Unspecified" ) ) );
-          log.debug( Messages.getString( "ERROR.ErrorDuringAnalysisStackTrace" ), e );
-        }
-      }
       IExecutionProfile executionProfile = holder.getExecutionProfile();
       if ( executionProfile == null ) {
         // Note that this should NEVER happen, this is purely a preventative measure...
@@ -332,12 +294,7 @@ public class TransformationRuntimeExtensionPoint extends BaseRuntimeExtensionPoi
       }
 
       try {
-        final Job parentJob = trans.getParentJob();
-        final Trans parentTrans = trans.getParentTrans();
-
-        // Create a lineage graph for this transformation only if it has no parent. Otherwise, the parent will incorporate
-        // the lineage information into its own graph
-        if ( parentJob == null && parentTrans == null ) {
+        if ( shouldCreateGraph( trans ) ) {
 
           // Add the execution profile information to the lineage graph
           addRuntimeLineageInfo( holder );

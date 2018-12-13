@@ -35,7 +35,6 @@ import org.pentaho.di.core.parameters.UnknownParamException;
 import org.pentaho.di.job.Job;
 import org.pentaho.di.job.JobListener;
 import org.pentaho.di.job.JobMeta;
-import org.pentaho.di.trans.Trans;
 import org.pentaho.dictionary.DictionaryConst;
 import org.pentaho.metaverse.analyzer.kettle.extensionpoints.BaseRuntimeExtensionPoint;
 import org.pentaho.metaverse.api.IDocument;
@@ -50,7 +49,6 @@ import org.pentaho.metaverse.api.model.IExecutionProfile;
 import org.pentaho.metaverse.api.model.IParamInfo;
 import org.pentaho.metaverse.api.model.LineageHolder;
 import org.pentaho.metaverse.api.model.kettle.MetaverseExtensionPoint;
-import org.pentaho.metaverse.impl.MetaverseCompletionService;
 import org.pentaho.metaverse.impl.model.ExecutionProfile;
 import org.pentaho.metaverse.impl.model.ParamInfo;
 import org.pentaho.metaverse.messages.Messages;
@@ -63,8 +61,6 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 
 /**
  * An extension point to gather runtime data for an execution of a job into an ExecutionProfile object
@@ -150,10 +146,7 @@ public class JobRuntimeExtensionPoint extends BaseRuntimeExtensionPoint implemen
         }
 
         final IDocument metaverseDocument = KettleAnalyzerUtil.buildDocument( builder, jobMeta, id, namespace );
-
-        Runnable analyzerRunner = MetaverseUtil.getAnalyzerRunner( documentAnalyzer, metaverseDocument );
-        // set the lineage task, so that we can wait for it to finish before proceeding to write out the graph
-        holder.setLineageTask( MetaverseCompletionService.getInstance().submit( analyzerRunner, id ) );
+        MetaverseUtil.runAnalyzer( documentAnalyzer, metaverseDocument );
       }
 
       // Save the lineage objects for later
@@ -176,43 +169,14 @@ public class JobRuntimeExtensionPoint extends BaseRuntimeExtensionPoint implemen
 
     log.info( Messages.getString( "INFO.JobFinished", job.getJobname() ) );
     runAnalyzers( job );
-
-    if ( allowedAsync() ) {
-      createLineGraphAsync( job );
-    } else {
-      createLineGraph( job );
-    }
-  }
-
-  protected void createLineGraphAsync( final Job job ) {
-    // Need to spin this processing off into its own thread, so we don't hold up normal PDI processing
-    Thread lineageWorker = new Thread( new Runnable() {
-
-      @Override
-      public void run() {
-        createLineGraph( job );
-      }
-    } );
-
-    lineageWorker.start();
+    createLineGraph( job );
   }
 
   protected void createLineGraph( final Job job ) {
-    log.info( Messages.getString( "INFO.WrittingGraphForJobn", job.getJobname() ) );
+    log.info( Messages.getString( "INFO.WrittingGraphForJob", job.getJobname() ) );
     try {
       // Get the current execution profile for this transformation
       LineageHolder holder = JobLineageHolderMap.getInstance().getLineageHolder( job );
-      Future lineageTask = holder.getLineageTask();
-      if ( lineageTask != null ) {
-        try {
-          lineageTask.get();
-        } catch ( InterruptedException e ) {
-          e.printStackTrace(); // TODO logger?
-        } catch ( ExecutionException e ) {
-          e.printStackTrace(); // TODO logger?
-        }
-      }
-
       // Get the current execution profile for this job
       IExecutionProfile executionProfile =
         JobLineageHolderMap.getInstance().getLineageHolder( job ).getExecutionProfile();
@@ -242,12 +206,7 @@ public class JobRuntimeExtensionPoint extends BaseRuntimeExtensionPoint implemen
       }
 
       try {
-        final Job parentJob = job.getParentJob();
-        final Trans parentTrans = job.getParentTrans();
-
-        // Create a lineage graph for this job only if it has no parent. Otherwise, the parent will incorporate
-        // the lineage information into its own graph
-        if ( parentJob == null && parentTrans == null ) {
+        if ( shouldCreateGraph( job ) ) {
           // Add the execution profile information to the lineage graph
           addRuntimeLineageInfo( holder );
 
